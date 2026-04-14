@@ -15,7 +15,9 @@ log() { echo "[$(date '+%H:%M:%S')] [$1] $2" >&2; }
 wait_for_slot() {
   local g="$1"
   while [[ ${grp_count[$g]:-0} -ge $MAX_PARALLEL ]]; do
-    for pid in ${grp_pids[$g]:-}; do kill -0 "$pid" 2>/dev/null || continue; done 2>/dev/null
+    for pid in ${grp_pids[$g]:-}; do 
+      kill -0 "$pid" 2>/dev/null || continue
+    done
     sleep 1
   done
 }
@@ -23,20 +25,29 @@ wait_for_slot() {
 cleanup_group() {
   local g="$1" new_pids="" active=0
   for pid in ${grp_pids[$g]:-}; do
-    if kill -0 "$pid" 2>/dev/null; then new_pids+=" $pid"; ((active++)); fi
+    if kill -0 "$pid" 2>/dev/null; then 
+      new_pids+=" $pid"
+      ((active++))
+    fi
   done
-  grp_pids[$g]="${new_pids# }"; grp_count[$g]=$active
+  grp_pids[$g]="${new_pids# }"
+  grp_count[$g]=$active
 }
 
 wait_for_group() {
   local g="$1"
-  for pid in ${grp_pids[$g]:-}; do wait "$pid" 2>/dev/null || true; done
-  grp_pids[$g]=""; grp_count[$g]=0
+  for pid in ${grp_pids[$g]:-}; do 
+    wait "$pid" 2>/dev/null || true
+  done
+  grp_pids[$g]=""
+  grp_count[$g]=0
 }
 
 clone_with_retry() {
   local g="$1" p="$2" o="$3" r="$4" b="${5:-master}" t="${6:-}" sp="$7" pa="$8" pm="$9" ex="${10}" mr="${11:-$MAX_RETRIES}"
-  local url="https://github.com/${o}/${r}.git" dir="${t:-${r}}" att=0 err=""
+  local url="https://github.com/${o}/${r}.git"
+  local dir="${t:-${r}}"
+  local att=0 err=""
   
   while [[ $att -lt $mr ]]; do
     ((att++))
@@ -51,7 +62,9 @@ clone_with_retry() {
         (cd "$td" && git sparse-checkout init --cone && git sparse-checkout set $pa) || ec=$?
       fi
       for pth in $pa; do 
-        [[ -d "$td/$pth" ]] && mv -n "$td/$pth" ./ 2>/dev/null || true
+        if [[ -d "$td/$pth" ]]; then
+          mv -n "$td/$pth" ./ 2>/dev/null || true
+        fi
       done
     else
       timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>/dev/null || ec=$?
@@ -61,7 +74,9 @@ clone_with_retry() {
           rm -rf "$dir"
         elif [[ -n "$ex" && -d "$dir" ]]; then 
           for item in $ex; do 
-            [[ -e "$dir/$item" ]] && mv -n "$dir/$item" ./ 2>/dev/null || true
+            if [[ -e "$dir/$item" ]]; then
+              mv -n "$dir/$item" ./ 2>/dev/null || true
+            fi
           done
           rm -rf "$dir"
         fi
@@ -76,7 +91,9 @@ clone_with_retry() {
     fi
     err="Exit: $ec"
     log "WARN" "❌ $err"
-    [[ $att -lt $mr ]] && sleep $((RETRY_DELAY * att))
+    if [[ $att -lt $mr ]]; then
+      sleep $((RETRY_DELAY * att))
+    fi
   done
   
   log "ERROR" "💥 Failed after $mr attempts"
@@ -118,15 +135,37 @@ main() {
     local g=$(echo "$src" | jq -r '.group // "default"')
     gprio[$g]=$(echo "$src" | jq -r '.priority // 99')
     gmap[$g]+="$src"$'\n'
-    if [[ -z "${glist[*]}" || ! " ${glist[*]} " =~ " $g " ]]; then
+    local found=0
+    for existing in "${glist[@]}"; do
+      if [[ "$existing" == "$g" ]]; then
+        found=1
+        break
+      fi
+    done
+    if [[ $found -eq 0 ]]; then
       glist+=("$g")
     fi
   done < <(echo "$json" | jq -c '.sources[]')
   
   # Sort groups by priority
+  local temp_file=$(mktemp)
+  for g in "${glist[@]}"; do
+    echo "${gprio[$g]} $g" >> "$temp_file"
+  done
+  sort -n "$temp_file" | while read priority group; do
+    # rebuild glist in sorted order
+    :
+  done
+  
   local sorted_groups=()
-  IFS=$'\n' read -d '' -r -a sorted_groups < <(for g in "${glist[@]}"; do echo "${gprio[$g]} $g"; done | sort -n | awk '{print $2}' && printf '\0')
-  glist=("${sorted_groups[@]}")
+  while IFS= read -r line; do
+    sorted_groups+=("${line#* }")
+  done < <(sort -n "$temp_file")
+  rm -f "$temp_file"
+  
+  if [[ ${#sorted_groups[@]} -gt 0 ]]; then
+    glist=("${sorted_groups[@]}")
+  fi
   
   log "INFO" "📦 Processing ${#glist[@]} groups"
   local total_ok=0 total_fail=0
@@ -134,22 +173,29 @@ main() {
   for g in "${glist[@]}"; do
     log "INFO" "🚀 Group: $g"
     while IFS= read -r src; do
-      [[ -n "$src" ]] && enqueue "$g" "$src"
+      if [[ -n "$src" ]]; then
+        enqueue "$g" "$src"
+      fi
     done <<< "${gmap[$g]}"
     
     wait_for_group "$g"
     
     # Count results
     local group_ok=0 group_fail=0
-    for f in /tmp/clone_result_*.tmp 2>/dev/null; do
-      [[ -f "$f" ]] || continue
-      if [[ "$(cat "$f")" == "0" ]]; then
-        ((group_ok++))
-      else
-        ((group_fail++))
-      fi
-      rm -f "$f"
-    done
+    local result_files=$(ls /tmp/clone_result_*.tmp 2>/dev/null || true)
+    if [[ -n "$result_files" ]]; then
+      for f in $result_files; do
+        if [[ -f "$f" ]]; then
+          local content=$(cat "$f" 2>/dev/null || echo "")
+          if [[ "$content" == "0" ]]; then
+            ((group_ok++))
+          else
+            ((group_fail++))
+          fi
+          rm -f "$f" 2>/dev/null || true
+        fi
+      done
+    fi
     total_ok=$((total_ok + group_ok))
     total_fail=$((total_fail + group_fail))
     log "INFO" "✅ Group '$g' done: $group_ok ok, $group_fail fail"
