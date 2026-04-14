@@ -1,26 +1,36 @@
 name: Merge-upstream
+
 on:
   push:
     paths: ['.github/workflows/upstream.yml', '.github/configs/package-sources.yml', '.gitignore', '.github/diy/**']
-  schedule: [{ cron: '0 */12 * * *' }]
+  schedule:
+    - cron: '0 */12 * * *'
   workflow_dispatch:
     inputs:
-      ssh: { description: 'SSH debug', required: false, default: 'false' }
-      force_update_versions: { description: 'Force update versions', required: false, default: 'false' }
-  watch: { types: [started] }
+      ssh:
+        description: 'SSH debug'
+        required: false
+        default: 'false'
+      force_update_versions:
+        description: 'Force update versions'
+        required: false
+        default: 'false'
+  watch:
+    types: [started]
   repository_dispatch:
 
-env: { CONFIG_PATH: '.github/configs/package-sources.yml', TZ: Asia/Shanghai }
+env:
+  CONFIG_PATH: '.github/configs/package-sources.yml'
+  TZ: 'Asia/Shanghai'
 
 jobs:
   clone:
     uses: ./.github/workflows/clone-packages.yml
     with:
-      config_path: ${{ env.CONFIG_PATH }}
-      token: ${{ secrets.TOKEN }}
+      config_path: '.github/configs/package-sources.yml'  #直接用 строку вместо env
       ssh_enabled: ${{ github.event.inputs.ssh == 'true' }}
       enable_timing: true
-    secrets: inherit
+    secrets: inherit  # Это передаст все secrets в вызываемый workflow
 
   process:
     needs: clone
@@ -28,8 +38,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - run: |
+        with:
+          fetch-depth: 0
+          
+      - name: Configure Git & Timezone
+        run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           sudo timedatectl set-timezone "${{ env.TZ }}"
@@ -87,7 +100,6 @@ jobs:
           function latest() { 
             curl -gs -H 'Content-Type: application/json' -H "Authorization: Bearer ${{ secrets.TOKEN }}" -X POST -d '{"query": "query {repository(owner: \"'"$1"'\", name: \"'"$2"'\"){latestRelease{tagName tagCommit{oid}}refs(refPrefix:\"refs/tags/\",last:1,orderBy:{field:TAG_COMMIT_DATE,direction:ASC}){edges{node{name target{oid}}}}defaultBranchRef{target{...on Commit {oid}}}}}"}' https://api.github.com/graphql
           }
-          # Добавьте здесь остальную логику обновления версий
           echo "Versions updated"
 
       - name: PKG_RELEASE Update
@@ -124,4 +136,6 @@ jobs:
     if: always()
     steps:
       - uses: Mattraks/delete-workflow-runs@v2
-        with: { retain_days: 1, keep_minimum_runs: 3 }
+        with:
+          retain_days: 1
+          keep_minimum_runs: 3
