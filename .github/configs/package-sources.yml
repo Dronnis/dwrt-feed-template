@@ -1,0 +1,67 @@
+# Настройки системы защиты и очередей
+protection:
+  max_parallel_per_group: 5
+  max_retries: 2
+  retry_delay_base: 2
+  timeout_minutes: 5
+
+# Группы с приоритетами (1 = запускается первым)
+groups:
+  - name: critical
+    priority: 1
+    sources:
+      - { owner: kiddin9, repo: my-packages, post_move: true }
+      - { owner: kiddin9, repo: openwrt-bypass, post_move: true }
+      - { owner: Openwrt-Passwall, repo: openwrt-passwall, post_move: true }
+      - { owner: Openwrt-Passwall, repo: openwrt-passwall-packages, post_move: true }
+
+  - name: main
+    priority: 2
+    sources:
+      - { owner: kiddin9, repo: luci-app-dnsfilter }
+      - { owner: kiddin9, repo: aria2 }
+      - { owner: kiddin9, repo: luci-theme-edge }
+      - { owner: kiddin9, repo: luci-app-xlnetacc }
+      - { owner: kiddin9, repo: luci-app-wizard }
+      - { owner: kiddin9, repo: luci-app-adguardhome }
+      - { owner: kiddin9, repo: luci-app-cloudreve }
+      - { owner: kiddin9, repo: openwrt-filebrowser, post_move: true }
+      - { owner: fw876, repo: helloworld, post_move: true }
+      - { owner: Lienol, repo: openwrt-package, target: liep }
+
+  - name: sirpdboy
+    priority: 3
+    sources:
+      - { owner: sirpdboy, repo: luci-app-advancedplus }
+      - { owner: sirpdboy, repo: luci-app-taskplan, target: taskplan, post_move: true }
+      - { owner: sirpdboy, repo: luci-app-lucky, target: oplucky, post_move: true }
+      - { owner: sirpdboy, repo: luci-app-partexp, target: partexp, post_move: true }
+      - { owner: sirpdboy, repo: netspeedtest, target: speedtest, post_move: true }
+      - { owner: sirpdboy, repo: luci-app-parentcontrol }
+      - { owner: sirpdboy, repo: luci-app-poweroffdevice, target: poweroffdevice, post_move: true }
+      - { owner: sirpdboy, repo: luci-app-watchdog, target: watchdog1, post_move: true }
+      - { owner: sirpdboy, repo: luci-app-cupsd, target: cupsd1, extract: ["luci-app-cupsd", "cups"] }
+      - { owner: sirpdboy, repo: luci-app-timecontrol, target: timecontrol, post_move: true }
+      - { owner: sirpdboy, repo: luci-theme-kucat }
+      - { owner: sirpdboy, repo: luci-app-kucat-config }
+      - { owner: sirpdboy, repo: luci-app-chatgpt-web }
+      - { owner: sirpdboy, repo: luci-app-eqosplus }
+      - { owner: sirpdboy, repo: luci-app-netdata, target: lucinetdata, extract: ["luci-app-netdata"] }
+
+  - name: sparse-heavy
+    priority: 4
+    sources:
+      - { owner: coolsnowwolf, repo: lede, branch: master, sparse: true, paths: ["package/wwan", "package/lean", "package/network/services/shellsync", "package/qca/shortcut-fe"] }
+      - { owner: immortalwrt, repo: immortalwrt, branch: openwrt-25.12, sparse: true, paths: ["package/kernel/rtl8189es", "package/emortal/autocore", "package/emortal/automount", "package/emortal/cpufreq", "package/network/utils/fullconenat", "package/network/utils/fullconenat-nft", "package/utils/mhz", "package/utils/pcat-manager"] }
+      - { owner: immortalwrt, repo: packages, branch: openwrt-25.12, sparse: true, paths: ["net/n2n", "net/dae", "net/frp", "net/amule", "net/cdnspeedtest", "net/minieap", "net/ddns-go", "net/sysuh3c", "net/3proxy", "net/cloudreve", "net/go-nats", "net/go-wol", "net/bitsrunlogin-go", "net/transfer", "net/daed", "net/udp2raw", "net/msd_lite", "net/subconverter", "net/ngrokc", "net/scutclient", "net/gost", "net/ua2f", "net/dufs", "net/qBittorrent-Enhanced-Edition", "net/tinyportmapper", "net/nexttrace", "net/rustdesk-server", "net/tuic-server", "net/ipset-lists", "net/ShadowVPN", "net/nps", "net/vlmcsd", "net/dnsforwarder", "net/ps3netsrv", "net/brook", "net/q", "net/vsftpd", "net/smartdns", "net/miniupnpd", "net/p910nd", "net/ariang", "libs/wxbase", "libs/rapidjson", "libs/libcron", "libs/quickjspp", "libs/toml11", "libs/libdvbcsa", "libs/libdouble-conversion", "libs/qt6base", "libs/jpcre2", "libs/alac", "libs/libcryptopp", "libs/antileech", "utils/qt6tools", "utils/cpulimit", "utils/sendat", "utils/cups-bjnp", "utils/rhash", "utils/boltbrowser", "utils/phicomm-k3screenctrl", "utils/joker", "utils/7z", "utils/dhrystone", "utils/supervisor", "utils/tinymembench", "utils/pcat-mgr", "utils/fan2go", "utils/coremark", "utils/watchcat", "multimedia/you-get", "multimedia/lux", "multimedia/gmediarender", "multimedia/ykdl", "multimedia/gallery-dl", "sound/spotifyd", "devel/go-rice", "devel/rust-bindgen", "admin/gotop", "lang/lua/lua-periphery", "lang/lua/lua-neturl", "lang/lua/lua-maxminddb", "devel/gn"] }
+      - { owner: immortalwrt, repo: luci, branch: openwrt-25.12, sparse: true, paths: ["applications", "collections/luci-nginx", "protocols/luci-proto-minieap", "protocols/luci-proto-quectel", "themes/luci-theme-argon"] }
+
+# Источники без группы автоматически попадают в "default" (priority: 99)
+# Добавьте сюда все остальные ~150 репозиториев из оригинала
+default_sources:
+  - { owner: sbwml, repo: luci-app-mosdns, target: openwrt-mos, extract: ["*mosdns", "v2dat"] }
+  - { owner: rufengsuixing, repo: luci-app-autoipsetadder }
+  - { owner: NateLol, repo: luci-app-beardropper }
+  - { owner: riverscn, repo: openwrt-iptvhelper, post_move: true }
+  - { owner: kongfl888, repo: luci-app-timedreboot }
+  - { owner: sbwml, repo: luci-app-webdav }

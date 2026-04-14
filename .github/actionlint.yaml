@@ -1,0 +1,12 @@
+config-variables:
+  - CONFIG_PATH
+  - TZ
+self-hosted-runner:
+  labels: [ubuntu-latest, ubuntu-24.04]
+paths:
+  .github/workflows/clone-packages.yml:
+    ignore: ['workflow call event is not defined', 'input ".*" is not defined']
+  .github/workflows/upstream.yml:
+    ignore: ['shellcheck reported issue in this script: SC2086:.+', 'shellcheck reported issue in this script: SC2155:.+']
+  .github/configs/package-sources.yml:
+    ignore: ['workflow file should have "on" section']
