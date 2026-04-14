@@ -5,9 +5,6 @@ on:
       config_path: 
         required: true 
         type: string
-      token: 
-        required: true 
-        type: string
       ssh_enabled: 
         required: false 
         type: boolean 
@@ -33,7 +30,7 @@ jobs:
           
       - uses: de-vri-es/setup-git-credentials@v2
         with: 
-          credentials: https://Dronnis:${{ inputs.token }}@github.com/
+          credentials: https://Dronnis:${{ secrets.TOKEN }}@github.com/
           
       - run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

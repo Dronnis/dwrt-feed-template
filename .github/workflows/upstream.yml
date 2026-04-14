@@ -27,10 +27,9 @@ jobs:
   clone:
     uses: ./.github/workflows/clone-packages.yml
     with:
-      config_path: '.github/configs/package-sources.yml'  #直接用 строку вместо env
+      config_path: '.github/configs/package-sources.yml'
       ssh_enabled: ${{ github.event.inputs.ssh == 'true' }}
       enable_timing: true
-    secrets: inherit  # Это передаст все secrets в вызываемый workflow
 
   process:
     needs: clone
@@ -98,7 +97,7 @@ jobs:
         if: github.event.inputs.force_update_versions == 'true'
         run: |
           function latest() { 
-            curl -gs -H 'Content-Type: application/json' -H "Authorization: Bearer ${{ secrets.TOKEN }}" -X POST -d '{"query": "query {repository(owner: \"'"$1"'\", name: \"'"$2"'\"){latestRelease{tagName tagCommit{oid}}refs(refPrefix:\"refs/tags/\",last:1,orderBy:{field:TAG_COMMIT_DATE,direction:ASC}){edges{node{name target{oid}}}}defaultBranchRef{target{...on Commit {oid}}}}}"}' https://api.github.com/graphql
+            curl -gs -H 'Content-Type: application/json' -H "Authorization: Bearer ${{ secrets.TOKEN_KIDDIN9 }}" -X POST -d '{"query": "query {repository(owner: \"'"$1"'\", name: \"'"$2"'\"){latestRelease{tagName tagCommit{oid}}refs(refPrefix:\"refs/tags/\",last:1,orderBy:{field:TAG_COMMIT_DATE,direction:ASC}){edges{node{name target{oid}}}}defaultBranchRef{target{...on Commit {oid}}}}}"}' https://api.github.com/graphql
           }
           echo "Versions updated"
 
