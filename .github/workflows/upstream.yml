@@ -17,7 +17,7 @@ jobs:
     uses: ./.github/workflows/clone-packages.yml
     with:
       config_path: ${{ env.CONFIG_PATH }}
-      token: ${{ secrets.TOKEN_KIDDIN9 }}
+      token: ${{ secrets.TOKEN }}
       ssh_enabled: ${{ github.event.inputs.ssh == 'true' }}
       enable_timing: true
     secrets: inherit
@@ -49,61 +49,73 @@ jobs:
 
       - name: Apply Patches
         run: |
-          find ".github/diy/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "patch -d './' -p1 -E -f -F 1 --no-backup-if-mismatch -i '%'" || \
+          find ".github/diy/patches" -type f -name '*.patch' -print0 | sort -z | xargs -0 -I {} sh -c "patch -d './' -p1 -E -f -F 1 --no-backup-if-mismatch -i '{}'" || \
             (curl -k --data chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" --data "text=❌ Patch failed" "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage"; exit 1)
 
       - name: Modify Packages
         run: |
           shopt -s extglob; set +e
           # Глобальные sed
-          sed -i -e "s/\(network\..*\)\.ifname/\1.device/g" -e "s/killall \([^-]+*\)/killall -3 \1/g" \
-            `find \( -path "*/root/*" -o -path "*/files/*" -o -path "*/luasrc/*" \) ! -path "./base-files/*" ! -path "./dnsmasq/*" ! -path "./luci-base/*" ! -path "./ppp/*" -type f` &
+          find \( -path "*/root/*" -o -path "*/files/*" -o -path "*/luasrc/*" \) ! -path "./base-files/*" ! -path "./dnsmasq/*" ! -path "./luci-base/*" ! -path "./ppp/*" -type f -exec sed -i -e "s/\(network\.[^.]*\)\.ifname/\1.device/g" -e "s/killall \([^-][^ ]*\)/killall -3 \1/g" {} \;
           
-          find . -name "Makefile" -type f -exec sed -i -e 's?include \.\./\.\./\(lang\|devel\)?include $(TOPDIR)/feeds/packages/\1?' -e "s/\(\(^\| \|	\)\(PKG_HASH\|PKG_MD5SUM\|PKG_MIRROR_HASH\|HASH\):=\).*/\1skip/" -e 's?include .*/luci.mk?include $(TOPDIR)/feeds/luci/luci.mk?' {} \; &
-          sed -i 's/+docker\( \|$\)/+docker +dockerd /' luci-app-!(docker*)/Makefile 2>/dev/null &
+          find . -name "Makefile" -type f -exec sed -i -e 's?include \.\./\.\./\(lang\|devel\)?include $(TOPDIR)/feeds/packages/\1?' -e "s/\(\(^\| \|	\)\(PKG_HASH\|PKG_MD5SUM\|PKG_MIRROR_HASH\|HASH\):=\).*/\1skip/" -e 's?include .*/luci.mk?include $(TOPDIR)/feeds/luci/luci.mk?' {} \;
+          
+          for f in luci-app-!(*docker*)/Makefile; do
+            [ -f "$f" ] && sed -i 's/+docker\( \|$\)/+docker +dockerd /' "$f"
+          done 2>/dev/null
           
           chmod +x .github/diy/*.sh
-          bash .github/diy/create_acl_for_luci.sh -a >/dev/null 2>&1 &
-          bash .github/diy/convert_translation.sh -a >/dev/null 2>&1 &
-          bash .github/diy/create_ucitrack_for_luci.sh -a >/dev/null 2>&1 &
-          bash .github/diy/generate_ucitrack.sh -a >/dev/null 2>&1 &
-          wait
+          bash .github/diy/create_acl_for_luci.sh -a >/dev/null 2>&1
+          bash .github/diy/convert_translation.sh -a >/dev/null 2>&1
+          bash .github/diy/create_ucitrack_for_luci.sh -a >/dev/null 2>&1
+          bash .github/diy/generate_ucitrack.sh -a >/dev/null 2>&1
           
           find . -path "./luci-*/root/*" -type f -exec chmod +x {} \;
-          sed -i "s/default n/default y/" dockerd/Config.in 2>/dev/null
-          sed -i "s/.tar.gz/.tar.xz/" openwrt-natmap/Makefile 2>/dev/null
+          sed -i "s/default n/default y/" dockerd/Config.in 2>/dev/null || true
+          sed -i "s/.tar.gz/.tar.xz/" openwrt-natmap/Makefile 2>/dev/null || true
           mkdir -p luci-app-passwall/root/www/luci-static/passwall luci-app-passwall2/root/www/luci-static/passwall2 luci-app-ssr-plus/root/www/luci-static/shadowsocksr
           cp -rf luci-app-bypass/root/www/luci-static/bypass/* luci-app-passwall/root/www/luci-static/passwall/ 2>/dev/null || true
           cp -rf luci-app-bypass/root/www/luci-static/bypass/* luci-app-passwall2/root/www/luci-static/passwall2/ 2>/dev/null || true
           cp -rf luci-app-bypass/root/www/luci-static/bypass/* luci-app-ssr-plus/root/www/luci-static/shadowsocksr/ 2>/dev/null || true
-          echo ".page-container>div>div>a:first-child{display:none}" >> luci-app-quickstart/htdocs/luci-static/quickstart/style.css 2>/dev/null
-          sed -i 's/icon!=="baby"/icon!==""/' luci-app-quickstart/htdocs/luci-static/quickstart/index.js 2>/dev/null
-          sed -i 's/+php8-cgi /+php8-cgi +php8-fpm /' luci-theme-spectra/Makefile 2>/dev/null
+          echo ".page-container>div>div>a:first-child{display:none}" >> luci-app-quickstart/htdocs/luci-static/quickstart/style.css 2>/dev/null || true
+          sed -i 's/icon!=="baby"/icon!==""/' luci-app-quickstart/htdocs/luci-static/quickstart/index.js 2>/dev/null || true
+          sed -i 's/+php8-cgi /+php8-cgi +php8-fpm /' luci-theme-spectra/Makefile 2>/dev/null || true
 
       - name: Update Versions (Optional)
         if: github.event.inputs.force_update_versions == 'true'
         run: |
-          # Логика обновления версий через GraphQL (сохранена из оригинала)
-          function latest() { curl -gs -H 'Content-Type: application/json' -H "Authorization: Bearer ${{ secrets.TOKEN_KIDDIN9 }}" -X POST -d '{ "query": "query {repository(owner: \"'"$1"'\", name: \"'"$2"'\"){latestRelease{tagName tagCommit{oid}}refs(refPrefix:\"refs/tags/\",last:1,orderBy:{field:TAG_COMMIT_DATE,direction:ASC}){edges{node{name target{oid}}}}defaultBranchRef{target{...on Commit {oid}}}}}"}' https://api.github.com/graphql; }
-          # ... (остальная логика версий аналогична оригиналу)
+          function latest() { 
+            curl -gs -H 'Content-Type: application/json' -H "Authorization: Bearer ${{ secrets.TOKEN }}" -X POST -d '{"query": "query {repository(owner: \"'"$1"'\", name: \"'"$2"'\"){latestRelease{tagName tagCommit{oid}}refs(refPrefix:\"refs/tags/\",last:1,orderBy:{field:TAG_COMMIT_DATE,direction:ASC}){edges{node{name target{oid}}}}defaultBranchRef{target{...on Commit {oid}}}}}"}' https://api.github.com/graphql
+          }
+          # Добавьте здесь остальную логику обновления версий
           echo "Versions updated"
 
       - name: PKG_RELEASE Update
         run: |
           for pkg in $(ls -d */ | grep -v "naiveproxy" | grep -v "luci-app-store" | grep -v "luci-app-quickstart"); do
-            [[ -f "$pkg/Makefile" ]] && grep -q "PKG_VERSION" "$pkg/Makefile" && ! grep -q "PKG_RELEASE" "$pkg/Makefile" && sed -i "s/\(PKG_VERSION:=.*\)/\1\nPKG_RELEASE:=/" "$pkg/Makefile" 2>/dev/null || true
-            grep -q "PKG_RELEASE" "$pkg/Makefile" 2>/dev/null && sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count HEAD -- "$pkg" 2>/dev/null || echo 1)/" "$pkg/Makefile" 2>/dev/null || true
+            if [ -f "$pkg/Makefile" ] && grep -q "PKG_VERSION" "$pkg/Makefile" && ! grep -q "PKG_RELEASE" "$pkg/Makefile"; then
+              sed -i "s/\(PKG_VERSION:=.*\)/\1\nPKG_RELEASE:=1/" "$pkg/Makefile"
+            fi
+            if grep -q "PKG_RELEASE" "$pkg/Makefile" 2>/dev/null; then
+              sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count HEAD -- "$pkg" 2>/dev/null || echo 1)/" "$pkg/Makefile"
+            fi
           done
 
       - name: Commit & Push
         run: |
           Emoji=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🍉" "💐" "🌴" "🚀" "🛸" "🗽" "⛅" "🌈" "🔥" "⛄" "🐶" "🏅" "🦄" "🐤")
           MSG="${Emoji[$RANDOM % ${#Emoji[@]}]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
-          git add -A; git commit -m "$MSG" || exit 0
+          git add -A
+          git commit -m "$MSG" || exit 0
+          
           for pkg in $(git diff-tree --no-commit-id --name-only HEAD | grep -v "naiveproxy" | grep -v "luci-app-passwall" | grep -v "luci-app-store" | grep -v "luci-app-quickstart"); do
-            [[ -f "$pkg/Makefile" ]] && grep -q "PKG_RELEASE" "$pkg/Makefile" && sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count HEAD -- "$pkg" 2>/dev/null || echo 1)/" "$pkg/Makefile" 2>/dev/null || true
+            if [ -f "$pkg/Makefile" ] && grep -q "PKG_RELEASE" "$pkg/Makefile"; then
+              sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count HEAD -- "$pkg" 2>/dev/null || echo 1)/" "$pkg/Makefile"
+            fi
           done
-          git add -A; git commit --amend -m "$MSG" || exit 0
+          
+          git add -A
+          git commit --amend -m "$MSG" || exit 0
           git push -f
 
   cleanup:

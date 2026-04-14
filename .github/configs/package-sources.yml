@@ -1,12 +1,15 @@
+# .github/configs/package-sources.yml
+
 # Настройки системы защиты и очередей
 protection:
-  max_parallel_per_group: 5
-  max_retries: 2
-  retry_delay_base: 2
-  timeout_minutes: 5
+  max_parallel_per_group: 5    # Максимум одновременных задач в одной группе
+  max_retries: 2               # Количество попыток при ошибке
+  retry_delay_base: 2          # Базовая задержка перед повтором (сек)
+  timeout_minutes: 5           # Таймаут на одну операцию клонирования
 
-# Группы с приоритетами (1 = запускается первым)
+# Группы источников (выполняются последовательно по приоритету)
 groups:
+  # === ГРУППА 1: CRITICAL (Самые важные/базовые пакеты) ===
   - name: critical
     priority: 1
     sources:
@@ -15,6 +18,7 @@ groups:
       - { owner: Openwrt-Passwall, repo: openwrt-passwall, post_move: true }
       - { owner: Openwrt-Passwall, repo: openwrt-passwall-packages, post_move: true }
 
+  # === ГРУППА 2: MAIN (Основные популярные приложения kiddin9) ===
   - name: main
     priority: 2
     sources:
@@ -26,9 +30,16 @@ groups:
       - { owner: kiddin9, repo: luci-app-adguardhome }
       - { owner: kiddin9, repo: luci-app-cloudreve }
       - { owner: kiddin9, repo: openwrt-filebrowser, post_move: true }
-      - { owner: fw876, repo: helloworld, post_move: true }
-      - { owner: Lienol, repo: openwrt-package, target: liep }
+      - { owner: kiddin9, repo: openwrt-netdata, target: netdata }
+      - { owner: kiddin9, repo: luci-app-syscontrol }
+      - { owner: kiddin9, repo: luci-app-chinadns-ng }
+      - { owner: kiddin9, repo: openwrt-my-dnshelper, post_move: true }
+      - { owner: kiddin9, repo: openwrt-lingtigameacc, post_move: true }
+      - { owner: kiddin9, repo: luci-app-vsftpd }
+      - { owner: kiddin9, repo: openwrt-subconverter, post_move: true }
+      - { owner: kiddin9, repo: luci-app-syncdial }
 
+  # === ГРУППА 3: SIRPDBOY (Пакеты от sirpdboy) ===
   - name: sirpdboy
     priority: 3
     sources:
@@ -48,20 +59,266 @@ groups:
       - { owner: sirpdboy, repo: luci-app-eqosplus }
       - { owner: sirpdboy, repo: luci-app-netdata, target: lucinetdata, extract: ["luci-app-netdata"] }
 
+  # === ГРУППА 4: SPARSE HEAVY (Большие репозитории с выборочной выгрузкой) ===
   - name: sparse-heavy
     priority: 4
     sources:
+      # Coolsnowwolf LEDE
       - { owner: coolsnowwolf, repo: lede, branch: master, sparse: true, paths: ["package/wwan", "package/lean", "package/network/services/shellsync", "package/qca/shortcut-fe"] }
+      
+      # ImmortalWrt Base
       - { owner: immortalwrt, repo: immortalwrt, branch: openwrt-25.12, sparse: true, paths: ["package/kernel/rtl8189es", "package/emortal/autocore", "package/emortal/automount", "package/emortal/cpufreq", "package/network/utils/fullconenat", "package/network/utils/fullconenat-nft", "package/utils/mhz", "package/utils/pcat-manager"] }
-      - { owner: immortalwrt, repo: packages, branch: openwrt-25.12, sparse: true, paths: ["net/n2n", "net/dae", "net/frp", "net/amule", "net/cdnspeedtest", "net/minieap", "net/ddns-go", "net/sysuh3c", "net/3proxy", "net/cloudreve", "net/go-nats", "net/go-wol", "net/bitsrunlogin-go", "net/transfer", "net/daed", "net/udp2raw", "net/msd_lite", "net/subconverter", "net/ngrokc", "net/scutclient", "net/gost", "net/ua2f", "net/dufs", "net/qBittorrent-Enhanced-Edition", "net/tinyportmapper", "net/nexttrace", "net/rustdesk-server", "net/tuic-server", "net/ipset-lists", "net/ShadowVPN", "net/nps", "net/vlmcsd", "net/dnsforwarder", "net/ps3netsrv", "net/brook", "net/q", "net/vsftpd", "net/smartdns", "net/miniupnpd", "net/p910nd", "net/ariang", "libs/wxbase", "libs/rapidjson", "libs/libcron", "libs/quickjspp", "libs/toml11", "libs/libdvbcsa", "libs/libdouble-conversion", "libs/qt6base", "libs/jpcre2", "libs/alac", "libs/libcryptopp", "libs/antileech", "utils/qt6tools", "utils/cpulimit", "utils/sendat", "utils/cups-bjnp", "utils/rhash", "utils/boltbrowser", "utils/phicomm-k3screenctrl", "utils/joker", "utils/7z", "utils/dhrystone", "utils/supervisor", "utils/tinymembench", "utils/pcat-mgr", "utils/fan2go", "utils/coremark", "utils/watchcat", "multimedia/you-get", "multimedia/lux", "multimedia/gmediarender", "multimedia/ykdl", "multimedia/gallery-dl", "sound/spotifyd", "devel/go-rice", "devel/rust-bindgen", "admin/gotop", "lang/lua/lua-periphery", "lang/lua/lua-neturl", "lang/lua/lua-maxminddb", "devel/gn"] }
+      
+      # ImmortalWrt Packages (Огромный список)
+      - { owner: immortalwrt, repo: packages, branch: openwrt-25.12, sparse: true, paths: [
+          "net/n2n", "net/dae", "net/frp", "net/amule", "net/cdnspeedtest", "net/minieap", 
+          "net/ddns-go", "net/sysuh3c", "net/3proxy", "net/cloudreve", "net/go-nats", 
+          "net/go-wol", "net/bitsrunlogin-go", "net/transfer", "net/daed", "net/udp2raw", 
+          "net/msd_lite", "net/subconverter", "net/ngrokc", "net/scutclient", "net/gost", 
+          "net/ua2f", "net/dufs", "net/qBittorrent-Enhanced-Edition", "net/tinyportmapper", 
+          "net/nexttrace", "net/rustdesk-server", "net/tuic-server", "net/ipset-lists", 
+          "net/ShadowVPN", "net/nps", "net/vlmcsd", "net/dnsforwarder", "net/ps3netsrv", 
+          "net/brook", "net/q", "net/vsftpd", "net/smartdns", "net/miniupnpd", "net/p910nd", 
+          "net/ariang", "libs/wxbase", "libs/rapidjson", "libs/libcron", "libs/quickjspp", 
+          "libs/toml11", "libs/libdvbcsa", "libs/libdouble-conversion", "libs/qt6base", 
+          "libs/jpcre2", "libs/alac", "libs/libcryptopp", "libs/antileech", "utils/qt6tools", 
+          "utils/cpulimit", "utils/sendat", "utils/cups-bjnp", "utils/rhash", "utils/boltbrowser", 
+          "utils/phicomm-k3screenctrl", "utils/joker", "utils/7z", "utils/dhrystone", 
+          "utils/supervisor", "utils/tinymembench", "utils/pcat-mgr", "utils/fan2go", 
+          "utils/coremark", "utils/watchcat", "multimedia/you-get", "multimedia/lux", 
+          "multimedia/gmediarender", "multimedia/ykdl", "multimedia/gallery-dl", "sound/spotifyd", 
+          "devel/go-rice", "devel/rust-bindgen", "admin/gotop", "lang/lua/lua-periphery", 
+          "lang/lua/lua-neturl", "lang/lua/lua-maxminddb", "devel/gn"
+        ] 
+      }
+      
+      # ImmortalWrt LuCI
       - { owner: immortalwrt, repo: luci, branch: openwrt-25.12, sparse: true, paths: ["applications", "collections/luci-nginx", "protocols/luci-proto-minieap", "protocols/luci-proto-quectel", "themes/luci-theme-argon"] }
 
-# Источники без группы автоматически попадают в "default" (priority: 99)
-# Добавьте сюда все остальные ~150 репозиториев из оригинала
+      # Cooldown Wolf Packages Sparse
+      - { owner: coolsnowwolf, repo: packages, branch: master, sparse: true, paths: ["multimedia/UnblockNeteaseMusic-Go", "multimedia/UnblockNeteaseMusic", "multimedia/aliyundrive-webdav", "net/gowebdav", "net/kismet", "net/mstpd", "net/qBittorrent-static", "net/phtunnel", "net/headscale", "net/clouddrive2", "net/baidupcs-go", "net/daemonlogger", "net/geth", "net/gnurl", "net/uugamebooster", "net/pgyvpn", "net/ooniprobe", "net/polipo", "net/rosy-file-server", "net/qiyougamebooster", "net/sqm-scripts-extra", "net/tor-fw-helper", "net/vncrepeater", "net/verysync", "net/vpnbypass", "net/vpn-policy-routing", "utils/qfirehose"] }
+      
+      # Matrix Action / Kochiya
+      - { owner: lunatickochiya, repo: Matrix-Action-Openwrt, branch: master, sparse: true, paths: ["package/kochiya/brlaser", "package/kochiya/luci-app-banmac-ipt", "package/kochiya/luci-app-banmac-nft", "package/kochiya/luci-app-nvr", "package/kochiya/luci-app-openvpn-server", "package/kochiya/luci-app-openvpn-server-client"] }
+      
+      # Sbwml pkgs
+      - { owner: sbwml, repo: openwrt_pkgs, branch: main, sparse: true, paths: ["luci-app-socat"] }
+      
+      # Zapret
+      - { owner: remittor, repo: zapret-openwrt, branch: zap1, sparse: true, paths: ["luci-app-zapret", "zapret"] }
+      - { owner: remittor, repo: zapret-openwrt, branch: master, sparse: true, paths: ["luci-app-zapret2", "zapret2"] }
+
+      # Xiaoqingfeng
+      - { owner: xiaoqingfengATGH, repo: feeds-xiaoqingfeng, branch: master, sparse: true, paths: ["homeredirect", "luci-app-homeredirect"] }
+      
+      # Liudf0716
+      - { owner: liudf0716, repo: luci, branch: chawrt/24.10, sparse: true, paths: ["applications/luci-app-yt-dlp", "applications/luci-app-apfree-wifidog", "applications/luci-app-ss-redir"] }
+      - { owner: liudf0716, repo: packages, branch: chawrt/24.10, sparse: true, paths: ["net/ss-redir"] }
+      
+      # X-WRT
+      - { owner: x-wrt, repo: com.x-wrt, branch: master, sparse: true, paths: ["luci-app-macvlan", "luci-app-xwan"] }
+      
+      # Obsy
+      - { owner: obsy, repo: packages, branch: master, sparse: true, paths: ["oscam", "luci-proto-wwan", "3ginfo", "modemband"] }
+      
+      # Jjm2473
+      - { owner: jjm2473, repo: packages, branch: istoreos-24.10, sparse: true, paths: ["utils/dockerd"] }
+      
+      # Ysurac OpenMPTCProuter
+      - { owner: Ysurac, repo: openmptcprouter-feeds, branch: develop, sparse: true, paths: ["dsvpn", "glorytun-udp", "glorytun", "grpcurl", "ipcalc", "luci-app-dsvpn", "luci-app-glorytun-tcp", "luci-app-glorytun-udp", "luci-app-mail", "luci-app-mlvpn", "luci-app-mptcp", "luci-app-nginx-ha", "luci-app-sqm-autorate", "luci-app-packet-capture", "luci-app-iperf", "luci-theme-openmptcprouter", "sqm-autorate", "speedtestc", "mlvpn", "mptcp", "tcptraceroute", "tracebox", "tsping", "atinout", "z8102"] }
+
+  # === ГРУППА 5: DEFAULT (Все остальные репозитории) ===
 default_sources:
+  # --- Прокси и сети (Passwall deps, Helloworld, etc) ---
   - { owner: sbwml, repo: luci-app-mosdns, target: openwrt-mos, extract: ["*mosdns", "v2dat"] }
+  - { owner: fw876, repo: helloworld, post_move: true }
+  - { owner: Lienol, repo: openwrt-package, target: liep }
   - { owner: rufengsuixing, repo: luci-app-autoipsetadder }
   - { owner: NateLol, repo: luci-app-beardropper }
   - { owner: riverscn, repo: openwrt-iptvhelper, post_move: true }
   - { owner: kongfl888, repo: luci-app-timedreboot }
   - { owner: sbwml, repo: luci-app-webdav }
+  - { owner: sbwml, repo: package_kernel_tcp-brutal }
+  - { owner: hudra0, repo: luci-app-qosmate }
+  
+  # --- Destan / Tencent / Shortcuts ---
+  - { owner: destan19, repo: OpenAppFilter, post_move: true }
+  - { owner: lvqier, repo: luci-app-dnsmasq-ipset }
+  - { owner: walkingsky, repo: luci-wifidog, target: luci-app-wifidog }
+  - { owner: peter-tank, repo: luci-app-autorepeater }
+  - { owner: brvphoenix, repo: luci-app-wrtbwmon, target: wrtbwmon1, post_move: true }
+  - { owner: brvphoenix, repo: wrtbwmon, target: wrtbwmon2, post_move: true }
+  - { owner: timsaya, repo: luci-app-bandix, target: bandix1, extract: ["luci-app-bandix"] }
+  - { owner: timsaya, repo: openwrt-bandix, target: bandix2, extract: ["openwrt-bandix"] }
+  - { owner: everburstSun, repo: tencentcloud-openwrt-plugin-ddns, extract: ["tencentcloud_ddns"], target: luci-app-tencentddns }
+  - { owner: Tencent-Cloud-Plugins, repo: tencentcloud-openwrt-plugin-cos, extract: ["tencentcloud_cos"], target: luci-app-tencentcloud-cos }
+  - { owner: doushang, repo: luci-app-shortcutmenu, target: luci-shortcutmenu, extract: ["luci-app-shortcutmenu"] }
+  - { owner: aa65535, repo: openwrt-dist-luci }
+
+  # --- Amlogic / NAS / iStore ---
+  - { owner: ophub, repo: luci-app-amlogic, target: amlogic, extract: ["luci-app-amlogic"] }
+  - { owner: mingxiaoyu, repo: luci-app-cloudflarespeedtest, target: cloudflarespeedtest, extract: ["applications/*"] }
+  - { owner: Openwrt-Passwall, repo: openwrt-passwall2, target: passwall2, extract: ["luci-app-passwall2"] }
+  - { owner: linkease, repo: nas-packages, extract: ["network/services/*"] }
+  - { owner: linkease, repo: nas-packages-luci, extract: ["luci/*"] }
+  - { owner: linkease, repo: istore, extract: ["luci/*"] }
+  - { owner: fcshark-org, repo: openwrt-fchomo, post_move: true }
+  - { owner: linkease, repo: istore-packages }
+  - { owner: linkease, repo: openwrt-app-actions }
+
+  # --- Clash / TCPDump / Nikki / Momo ---
+  - { owner: frainzy1477, repo: luci-app-clash }
+  - { owner: peter-tank, repo: luci-app-fullconenat }
+  - { owner: KFERMercer, repo: luci-app-tcpdump }
+  - { owner: ykxVK8yL5L, repo: pikpak-webdav, target: pikpak, extract: ["openwrt/*"] }
+  - { owner: jjm2473, repo: openwrt-apps, post_process: "clean_openwrt_apps" } # Special handling in script if needed, else standard clone
+  - { owner: nikkinikki-org, repo: OpenWrt-nikki, extract: ["luci-app-nikki", "nikki"] }
+  - { owner: nikkinikki-org, repo: OpenWrt-momo, extract: ["luci-app-momo", "momo"] }
+
+  # --- Speedtest / Suselogin / Dogcom / Bruka / Xray ---
+  - { owner: ZeaKyX, repo: speedtest-web }
+  - { owner: ZeaKyX, repo: luci-app-speedtest-web }
+  - { owner: Wulnut, repo: luci-app-suselogin }
+  - { owner: mchome, repo: openwrt-dogcom }
+  - { owner: lucikap, repo: luci-app-brukamen, extract: ["luci*"] }
+  - { owner: yichya, repo: luci-app-xray, target: yichya, extract: ["status", "core"], post_process: "rename_xray" }
+  - { owner: rafmilecki, repo: luci-app-xjay }
+  - { owner: lwb1978, repo: luci-app-timewol }
+
+  # --- AliDDNS / DNSCrypt / Sundqiang / RKP ---
+  - { owner: honwen, repo: luci-app-aliddns }
+  - { owner: peter-tank, repo: luci-app-dnscrypt-proxy2 }
+  - { owner: sundaqiang, repo: openwrt-packages, extract: ["luci-*"] }
+  - { owner: CHN-beta, repo: rkp-ipid }
+  - { owner: 2018nuoyan, repo: openwrt_nezha, extract: ["*nezhav1"] }
+  - { owner: Ausaci, repo: luci-app-nat6-helper, branch: main-dev }
+
+  # --- Homebridge / Synology / LanPlay / Nodogsplash ---
+  - { owner: shanglanxin, repo: luci-app-homebridge }
+  - { owner: ykxVK8yL5L, repo: luci-app-synology, target: synology, extract: ["luci-app-synology"] }
+  - { owner: htynkn, repo: openwrt-switch-lan-play, extract: ["package/*"] }
+  - { owner: xptsp, repo: luci-app-nodogsplash }
+  - { owner: xptsp, repo: luci-mod-listening-ports }
+  - { owner: xptsp, repo: luci-app-squid-adv }
+  - { owner: 10000ge10000, repo: luci-app-openclaw }
+
+  # --- SSR-Rust / AutoBuild / AT-Socat / EasyConfig ---
+  - { owner: honwen, repo: luci-app-shadowsocks-rust }
+  - { owner: Hyy2001X, repo: AutoBuild-Packages, post_move: true }
+  - { owner: 4IceG, repo: luci-app-at-socat, target: at-socat, post_move: true }
+  - { owner: 4IceG, repo: luci-app-easyconfig-transfer, target: easyconfig, post_move: true }
+  - { owner: 4IceG, repo: luci-app-atcommands, target: atcommands, post_move: true }
+
+  # --- BroadbandAcc / WiFiPortal / TorBP / AirConnect / Alpha ---
+  - { owner: Diciya, repo: luci-app-broadbandacc }
+  - { owner: wiwizcom, repo: WiFiPortal, post_move: true }
+  - { owner: zerolabnet, repo: luci-app-torbp }
+  - { owner: sbwml, repo: luci-app-airconnect, target: airconnect1, post_move: true }
+  - { owner: derisamedia, repo: luci-theme-alpha }
+  - { owner: animegasan, repo: luci-app-alpha-config }
+  - { owner: gofly, repo: openwrt-luci-proto-tinc }
+  - { owner: hzyitc, repo: mnh-openwrt, post_move: true }
+
+  # --- Daed / FanControl / 5G Modem ---
+  - { owner: QiuSimons, repo: luci-app-daed-next, target: daed1, post_move: true }
+  - { owner: JiaY-shi, repo: fancontrol, target: fanc, extract: ["fancontrol", "luci-app-fancontrol"] }
+  - { owner: Siriling, repo: 5G-Modem-Support, post_move: true }
+
+  # --- Muink Packages (DNSProxy, Einat, Natmap, etc) ---
+  - { owner: muink, repo: luci-app-dnsproxy }
+  - { owner: muink, repo: luci-app-einat }
+  - { owner: muink, repo: openwrt-einat-ebpf }
+  - { owner: muink, repo: openwrt-natmapt }
+  - { owner: muink, repo: luci-app-natmapt }
+  - { owner: muink, repo: openwrt-stuntman }
+  - { owner: muink, repo: openwrt-alwaysonline }
+  - { owner: muink, repo: luci-app-alwaysonline }
+  - { owner: muink, repo: openwrt-rgmac }
+  - { owner: muink, repo: luci-app-change-mac }
+  - { owner: muink, repo: luci-app-packagesync }
+  - { owner: muink, repo: luci-app-tn-netports }
+  - { owner: muink, repo: openwrt-go-stun }
+  - { owner: muink, repo: luci-app-tinyfilemanager }
+  - { owner: muink, repo: openwrt-Toolkit }
+  - { owner: muink, repo: openwrt-fastfetch }
+  - { owner: muink, repo: luci-app-ssrust }
+
+  # --- GSpotx2f (Status/Monitoring) & Carseason ---
+  - { owner: gSpotx2f, repo: luci-app-temp-status }
+  - { owner: gSpotx2f, repo: luci-app-cpu-perf }
+  - { owner: gSpotx2f, repo: luci-app-log }
+  - { owner: gSpotx2f, repo: luci-app-internet-detector, target: idetector, extract: ["*internet-detector*"] }
+  - { owner: gSpotx2f, repo: luci-app-disks-info }
+  - { owner: gSpotx2f, repo: luci-app-interfaces-statistics }
+  - { owner: gSpotx2f, repo: luci-app-cpu-status-mini }
+  - { owner: gSpotx2f, repo: luci-app-cpu-status }
+  - { owner: Carseason, repo: openwrt-packages, target: Carseason1, extract: ["*/*", "services/*"] }
+  - { owner: Carseason, repo: openwrt-themedog, extract: ["luci/*"] }
+  - { owner: Carseason, repo: openwrt-app-actions, target: Carseason2, extract: ["applications/*"] }
+  - { owner: Thaolga, repo: openwrt-nekobox, extract: ["luci-*"] }
+  - { owner: nosignals, repo: openwrt-neko, extract: ["luci-app-neko"] }
+
+  # --- Animegasan / Hickory / GuestWiFi / NatMap / HV-Tools / Design Theme ---
+  - { owner: ilxp, repo: luci-app-ikoolproxy }
+  - { owner: animegasan, repo: luci-app-droidmodem }
+  - { owner: animegasan, repo: luci-app-droidnet }
+  - { owner: animegasan, repo: luci-app-ipinfo }
+  - { owner: animegasan, repo: luci-app-dnsleaktest }
+  - { owner: animegasan, repo: luci-app-gpioled }
+  - { owner: hingbong, repo: hickory-dns-openwrt, post_move: true }
+  - { owner: kenzok78, repo: luci-app-guest-wifi }
+  - { owner: EkkoG, repo: openwrt-natmap }
+  - { owner: EkkoG, repo: luci-app-natmap }
+  - { owner: yichya, repo: openwrt-hv-tools }
+  - { owner: papagaye744, repo: luci-theme-design }
+
+  # --- EasyTier / DNSPod / VNT / NetTask / XUPnP / Caddy / SMBUser / RedSocks / DynV6 / CampusNet / SwitchTools ---
+  - { owner: EasyTier, repo: luci-app-easytier, target: luci-app-easytier1, post_move: true }
+  - { owner: ntlf9t, repo: luci-app-dnspod }
+  - { owner: lmq8267, repo: luci-app-vnt, target: opvnt, extract: ["luci-app-vnt"] }
+  - { owner: RymFred11, repo: luci-app-nettask, target: nettask, extract: ["luci-app-nettask"] }
+  - { owner: jarod360, repo: luci-app-xupnpd }
+  - { owner: fuqiang03, repo: openwrt-caddy }
+  - { owner: lmq8267, repo: luci-app-caddy, target: luci-caddy, extract: ["luci-app-caddy"] }
+  - { owner: sbwml, repo: luci-app-smbuser }
+  - { owner: rushxrushx, repo: luci-app-redsocks }
+  - { owner: luochongjun, repo: luci-app-dynv6 }
+  - { owner: nicholas9698, repo: luci-app-campusnet }
+  - { owner: tanghammer, repo: luci-app-switchtools }
+
+  # --- AccessControlPlus / LiteWatchdog / MiniProxy / CellularStatus / Nginx / School / LLDPD / QoSEmong / TaskSchedule ---
+  - { owner: kingyond, repo: luci-app-accesscontrol-plus, target: accesscontrol-plus, extract: ["luci-app-accesscontrol-plus"] }
+  - { owner: 4IceG, repo: luci-app-lite-watchdog, target: lite-watchdog, extract: ["luci-app-lite-watchdog"] }
+  - { owner: Mitsuhaxy, repo: luci-app-miniproxy }
+  - { owner: tkmsst, repo: luci-app-cellularstatus, target: cellularstatus, extract: ["luci/applications/*"] }
+  - { owner: arenekosreal, repo: luci-app-nginx }
+  - { owner: zfdx123, repo: luci-app-school }
+  - { owner: tano-systems, repo: luci-app-tn-lldpd }
+  - { owner: DRAWCORE, repo: luci-app-qos-emong }
+  - { owner: ykxVK8yL5L, repo: luci-app-taskschedule, target: taskschedule, post_move: true }
+
+  # --- JederProxy / CQUST / XClient / MProxy / IPv6Filter / DomainProxy / SmartVPN / ForceData / OpenList2 / Material3 / Aurora ---
+  - { owner: ttimasdf, repo: luci-app-jederproxy }
+  - { owner: ApeaSuperz, repo: luci-app-cqustdotnet, target: cqustdotnet, extract: ["luci-app-cqustdotnet"] }
+  - { owner: xcode75, repo: luci-app-xclient }
+  - { owner: chenzhen6666, repo: luci-app-mproxy, target: mproxy, post_move: true }
+  - { owner: a904055262, repo: luci-app-ipv6clientfilter }
+  - { owner: mukaiu, repo: luci-app-domain-proxy }
+  - { owner: danielaskdd, repo: luci-app-smartvpn }
+  - { owner: hequan2017, repo: luci-app-forcedata }
+  - { owner: sbwml, repo: luci-app-openlist2, target: oplist, post_move: true }
+  - { owner: AngelaCooljx, repo: luci-theme-material3 }
+  - { owner: eamonxg, repo: luci-theme-aurora }
+
+  # --- QosMate / YMPD / Peanut / PublicIP / WeChatPush / Mentohust / Beszel ---
+  - { owner: hudra0, repo: qosmate }
+  - { owner: xptsp, repo: luci-app-ympd }
+  - { owner: xptsp, repo: openwrt-ympd }
+  - { owner: xptsp, repo: openwrt-peanut }
+  - { owner: calfeche13, repo: luci-app-public-ip-monitor }
+  - { owner: tty228, repo: luci-app-wechatpush }
+  - { owner: sbwml, repo: luci-app-mentohust, target: mentohust1, post_move: true }
+  - { owner: vernette, repo: beszel-agent-openwrt, post_move: true }
+
+  # --- ModemFeed (Special Move Logic) ---
+  - { owner: koshev-msk, repo: modemfeed, extract: ["*/!(telephony)/*"] }

@@ -1,14 +1,24 @@
-
 name: Clone-Packages
 on:
   workflow_call:
     inputs:
-      config_path: { required: true, type: string }
-      token: { required: true, type: string }
-      ssh_enabled: { required: false, type: boolean, default: false }
-      enable_timing: { required: false, type: boolean, default: true }
+      config_path: 
+        required: true 
+        type: string
+      token: 
+        required: true 
+        type: string
+      ssh_enabled: 
+        required: false 
+        type: boolean 
+        default: false
+      enable_timing: 
+        required: false 
+        type: boolean 
+        default: true
     outputs:
-      packages_count: { value: ${{ jobs.clone.outputs.packages_count }} }
+      packages_count: 
+        value: ${{ jobs.clone.outputs.packages_count }}
 
 jobs:
   clone:
@@ -18,9 +28,13 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with: 
+          fetch-depth: 0
+          
       - uses: de-vri-es/setup-git-credentials@v2
-        with: { credentials: https://Dronnis:${{ inputs.token }}@github.com/ }
+        with: 
+          credentials: https://Dronnis:${{ inputs.token }}@github.com/
+          
       - run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -28,7 +42,8 @@ jobs:
 
       - name: Merge & Validate Sources
         id: prep
-        env: { CONFIG_PATH: ${{ inputs.config_path }} }
+        env: 
+          CONFIG_PATH: ${{ inputs.config_path }}
         run: |
           python3 -c "import yaml; yaml.safe_load(open('${{ inputs.config_path }}'))"
           python3 .github/scripts/merge-sources.py > /tmp/merged.json
@@ -41,10 +56,13 @@ jobs:
         run: |
           chmod +x .github/scripts/*.sh
           source .github/scripts/timing.sh
-          init_metrics; start_timer "clone_repos"
+          init_metrics
+          start_timer "clone_repos"
           export MAX_PARALLEL_PER_GROUP=5 MAX_RETRIES=2 RETRY_DELAY_BASE=2 CLONE_TIMEOUT_MIN=5
           bash .github/scripts/clone-manager.sh '${{ steps.prep.outputs.sources_json }}'
-          end_timer "clone_repos"; print_summary; export_to_github
+          end_timer "clone_repos"
+          print_summary
+          export_to_github
 
       - name: Cleanup & Report
         if: always()
@@ -57,7 +75,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: clone-metrics-${{ github.run_number }}, path: /tmp/*.log, retention-days: 5 }
+        with: 
+          name: clone-metrics-${{ github.run_number }}
+          path: /tmp/*.log
+          retention-days: 5
       
       - uses: kiddin9/debugger-action@master
-        if: inputs.ssh_enabled
+        if: ${{ inputs.ssh_enabled == true }}
