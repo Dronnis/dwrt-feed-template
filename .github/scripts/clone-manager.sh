@@ -47,13 +47,24 @@ clone_with_retry() {
       local td=$(mktemp -d)
       trap "rm -rf '$td'" RETURN
       timeout "${CLONE_TIMEOUT}m" git clone -b "$b" --depth=1 --filter=blob:none --sparse "$url" "$td" 2>/dev/null || ec=$?
-      [[ $ec -eq 0 ]] && (cd "$td" && git sparse-checkout init --cone && git sparse-checkout set $pa) || ec=$?
-      for pth in $pa; do [[ -d "$td/$pth" ]] && mv -n "$td/$pth" ./ 2>/dev/null || true; done
+      if [[ $ec -eq 0 ]]; then
+        (cd "$td" && git sparse-checkout init --cone && git sparse-checkout set $pa) || ec=$?
+      fi
+      for pth in $pa; do 
+        [[ -d "$td/$pth" ]] && mv -n "$td/$pth" ./ 2>/dev/null || true
+      done
     else
       timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>/dev/null || ec=$?
       if [[ $ec -eq 0 ]]; then
-        if [[ "$pm" == "true" && -d "$dir" ]]; then find "$dir" -maxdepth 1 -mindepth 1 -type d -exec mv -n {} ./ \; 2>/dev/null; rm -rf "$dir"
-        elif [[ -n "$ex" && -d "$dir" ]]; then for item in $ex; do [[ -e "$dir/$item" ]] && mv -n "$dir/$item" ./ 2>/dev/null || true; done; rm -rf "$dir"; fi
+        if [[ "$pm" == "true" && -d "$dir" ]]; then 
+          find "$dir" -maxdepth 1 -mindepth 1 -type d -exec mv -n {} ./ \; 2>/dev/null
+          rm -rf "$dir"
+        elif [[ -n "$ex" && -d "$dir" ]]; then 
+          for item in $ex; do 
+            [[ -e "$dir/$item" ]] && mv -n "$dir/$item" ./ 2>/dev/null || true
+          done
+          rm -rf "$dir"
+        fi
       fi
     fi
     
@@ -77,17 +88,18 @@ enqueue() {
   local g="$1" src="$2"
   wait_for_slot "$g"
   (
-    clone_with_retry "$g" \
-      "$(echo "$src" | jq -r '.priority // 99')" \
-      "$(echo "$src" | jq -r '.owner')" \
-      "$(echo "$src" | jq -r '.repo')" \
-      "$(echo "$src" | jq -r '.branch // "master"')" \
-      "$(echo "$src" | jq -r '.target // empty')" \
-      "$(echo "$src" | jq -r '.sparse // false')" \
-      "$(echo "$src" | jq -r '.paths // [] | join(" ")')" \
-      "$(echo "$src" | jq -r '.post_move // false')" \
-      "$(echo "$src" | jq -r '.extract // [] | join(" ")')" \
-      "$(echo "$src" | jq -r '.max_retries // env.MAX_RETRIES // 2')"
+    local priority=$(echo "$src" | jq -r '.priority // 99')
+    local owner=$(echo "$src" | jq -r '.owner')
+    local repo=$(echo "$src" | jq -r '.repo')
+    local branch=$(echo "$src" | jq -r '.branch // "master"')
+    local target=$(echo "$src" | jq -r '.target // empty')
+    local sparse=$(echo "$src" | jq -r '.sparse // false')
+    local paths=$(echo "$src" | jq -r '.paths // [] | join(" ")')
+    local post_move=$(echo "$src" | jq -r '.post_move // false')
+    local extract=$(echo "$src" | jq -r '.extract // [] | join(" ")')
+    local max_retries=$(echo "$src" | jq -r ".max_retries // env.MAX_RETRIES // 2")
+    
+    clone_with_retry "$g" "$priority" "$owner" "$repo" "$branch" "$target" "$sparse" "$paths" "$post_move" "$extract" "$max_retries"
     exit $?
   ) &
   local pid=$!
@@ -106,13 +118,19 @@ main() {
     local g=$(echo "$src" | jq -r '.group // "default"')
     gprio[$g]=$(echo "$src" | jq -r '.priority // 99')
     gmap[$g]+="$src"$'\n'
-    [[ -z "${glist[*]}" || ! " ${glist[*]} " =~ " $g " ]] && glist+=("$g")
+    if [[ -z "${glist[*]}" || ! " ${glist[*]} " =~ " $g " ]]; then
+      glist+=("$g")
+    fi
   done < <(echo "$json" | jq -c '.sources[]')
   
-  IFS=$'\n' glist=($(for g in "${glist[@]}"; do echo "${gprio[$g]} $g"; done | sort -n | awk '{print $2}')); unset IFS
+  # Sort groups by priority
+  local sorted_groups=()
+  IFS=$'\n' read -d '' -r -a sorted_groups < <(for g in "${glist[@]}"; do echo "${gprio[$g]} $g"; done | sort -n | awk '{print $2}' && printf '\0')
+  glist=("${sorted_groups[@]}")
   
   log "INFO" "📦 Processing ${#glist[@]} groups"
-  local ok=0 fail=0
+  local total_ok=0 total_fail=0
+  
   for g in "${glist[@]}"; do
     log "INFO" "🚀 Group: $g"
     while IFS= read -r src; do
@@ -120,15 +138,24 @@ main() {
     done <<< "${gmap[$g]}"
     
     wait_for_group "$g"
+    
+    # Count results
+    local group_ok=0 group_fail=0
     for f in /tmp/clone_result_*.tmp 2>/dev/null; do
       [[ -f "$f" ]] || continue
-      [[ "$(cat "$f")" == "0" ]] && ((ok++)) || ((fail++))
+      if [[ "$(cat "$f")" == "0" ]]; then
+        ((group_ok++))
+      else
+        ((group_fail++))
+      fi
       rm -f "$f"
     done
-    log "INFO" "✅ Group '$g' done: +$ok ok, $fail fail"
+    total_ok=$((total_ok + group_ok))
+    total_fail=$((total_fail + group_fail))
+    log "INFO" "✅ Group '$g' done: $group_ok ok, $group_fail fail"
   done
   
-  echo "total_ok=$ok total_fail=$fail"
+  echo "total_ok=$total_ok total_fail=$total_fail"
 }
 
 main "${1:-}"
