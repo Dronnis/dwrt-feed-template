@@ -1,0 +1,180 @@
+# Основные настройки
+settings:
+  timezone: "Asia/Shanghai"
+  git_user_email: "github-actions[bot]@users.noreply.github.com"
+  git_user_name: "github-actions[bot]"
+  parallel_jobs: 8  # Параллельных загрузок
+  default_branch: "master"
+  
+  # Исключения для автообновления версий
+  version_auto_update_exclude:
+    - "luci-app-store"
+    - "naiveproxy"
+    - "luci-app-quickstart"
+  
+  # Исключения для PKG_RELEASE
+  pkg_release_exclude:
+    - "naiveproxy"
+    - "luci-app-store"
+
+# Категории репозиториев
+repositories:
+  
+  # Основные (kiddin9)
+  core:
+    - name: my-packages
+      url: https://github.com/kiddin9/my-packages
+      type: full
+      action: mvdir
+      
+    - name: openwrt-bypass
+      url: https://github.com/kiddin9/openwrt-bypass
+      type: full
+      action: mvdir
+      
+    - name: luci-app-dnsfilter
+      url: https://github.com/kiddin9/luci-app-dnsfilter
+      type: full
+      
+    - name: luci-theme-edge
+      url: https://github.com/kiddin9/luci-theme-edge
+      type: full
+
+  # Passwall и подобные
+  proxy:
+    - name: openwrt-passwall
+      url: https://github.com/Openwrt-Passwall/openwrt-passwall
+      type: full
+      action: mvdir
+      
+    - name: openwrt-passwall-packages
+      url: https://github.com/Openwrt-Passwall/openwrt-passwall-packages
+      type: full
+      action: mvdir
+      
+    - name: helloworld
+      url: https://github.com/fw876/helloworld
+      type: full
+      action: mvdir
+
+  # sirpdboy пакеты
+  sirpdboy:
+    - name: luci-app-advancedplus
+      url: https://github.com/sirpdboy/luci-app-advancedplus
+      type: full
+      
+    - name: luci-app-taskplan
+      url: https://github.com/sirpdboy/luci-app-taskplan
+      type: full
+      action: mvdir
+      target_dir: taskplan
+      
+    - name: luci-app-lucky
+      url: https://github.com/sirpdboy/luci-app-lucky
+      type: full
+      action: mvdir
+      target_dir: oplucky
+
+  # Sparse checkouts (частичные клоны)
+  sparse:
+    - name: lede-packages
+      url: https://github.com/coolsnowwolf/lede
+      branch: master
+      sparse_paths:
+        - package/wwan
+        - package/lean
+        - package/network/services/shellsync
+        - package/qca/shortcut-fe
+      action: copy_sparse
+      
+    - name: immortalwrt-packages
+      url: https://github.com/immortalwrt/packages
+      branch: openwrt-25.12
+      sparse_paths:
+        - net/n2n
+        - net/dae
+        - net/frp
+        - net/smartdns
+        - net/miniupnpd
+      action: copy_sparse
+
+  # Специальные (с преобразованиями)
+  special:
+    - name: luci-app-mosdns
+      url: https://github.com/sbwml/luci-app-mosdns
+      type: custom
+      action: custom_mosdns
+      source_repo: openwrt-mos
+      files_to_copy:
+        - "*/mosdns"
+        - "*/v2dat"
+        
+    - name: aliyundrive-webdav
+      url: https://github.com/messense/aliyundrive-webdav
+      type: custom
+      action: copy_subdir
+      source_path: openwrt
+      
+  # muink пакеты (много маленьких репозиториев)
+  muink:
+    group: true
+    base_url: https://github.com/muink
+    repositories:
+      - name: luci-app-dnsproxy
+      - name: luci-app-einat
+      - name: openwrt-einat-ebpf
+      - name: openwrt-natmapt
+      - name: luci-app-natmapt
+      - name: openwrt-stuntman
+      - name: openwrt-alwaysonline
+      - name: luci-app-alwaysonline
+
+  # gSpotx2f пакеты
+  gspotx2f:
+    group: true
+    base_url: https://github.com/gSpotx2f
+    repositories:
+      - name: luci-app-temp-status
+      - name: luci-app-cpu-perf
+      - name: luci-app-log
+      - name: luci-app-disks-info
+      - name: luci-app-interfaces-statistics
+
+# Пост-обработка
+post_processing:
+  # Удаление дубликатов
+  delete_duplicates:
+    - source: luciapp
+      exclude:
+        - luci-app-noddos
+        - luci-app-filebrowser-go
+        - luci-app-chrony
+        
+  # Sed замены  
+  sed_replacements:
+    - pattern: "\\(network\\..*\\)\\.ifname"
+      replacement: "\\1.device"
+      paths:
+        - "*/root/*"
+        - "*/files/*"
+        - "*/luasrc/*"
+      exclude_paths:
+        - "./base-files/*"
+        - "./dnsmasq/*"
+        
+    - pattern: "killall \\([^-]+*\\)"
+      replacement: "killall -3 \\1"
+      paths:
+        - "*/files/root/etc/init.d/*"
+        - "*/root/etc/init.d/*"
+
+  # Перемещение файлов
+  move_files:
+    - source: "luciapp/!(luci-app-noddos|luci-app-filebrowser-go)/"
+      target: "./"
+      
+  # Makefile модификации
+  makefile_mods:
+    - add_pkg_release: true
+    - fix_includes: true
+    - fix_docker_deps: true

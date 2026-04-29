@@ -1,0 +1,66 @@
+name: Merge-upstream
+
+on:
+  push:
+    paths:
+      - '.github/workflows/merge-upstream.yml'
+      - '.github/config/**'
+      - '.github/scripts/**'
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'Enable SSH'
+        required: false
+        default: 'false'
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install pyyaml jq
+        sudo apt-get update
+        sudo apt-get install -y moreutils parallel
+
+    - name: Setup Git credentials
+      uses: de-vri-es/setup-git-credentials@v2
+      with:
+        credentials: https://kiddin9:${{ secrets.TOKEN_KIDDIN9 }}@github.com/
+
+    - name: Run merge manager
+      run: |
+        chmod +x .github/scripts/*.sh
+        .github/scripts/merge-manager.sh
+
+    - name: SSH debug
+      uses: kiddin9/debugger-action@master
+      if: github.event.inputs.ssh == 'true'
+
+    - name: Commit and push
+      run: |
+        Emojis=("🎉" "🤞" "✨" "🎁" "🎈" "🎄")
+        git add .
+        git commit -m "${Emojis[$RANDOM % ${#Emojis[@]}]} Sync $(date +'%Y-%m-%d %H:%M:%S')" || exit 0
+        git push -f
+
+    - name: Cleanup workflows
+      uses: Mattraks/delete-workflow-runs@main
+      continue-on-error: true
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
