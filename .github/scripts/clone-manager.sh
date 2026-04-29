@@ -11,12 +11,18 @@ log() { echo "[$(date '+%H:%M:%S')] [$1] $2" >&2; }
 clone_repo() {
   local owner="$1"
   local repo="$2"
-  local branch="${3:-master}"
+  local branch="${3:-main}"  # Changed from master to main
   local target="${4:-}"
   local post_move="${5:-false}"
   
   local dir="${target:-$repo}"
   local url="https://github.com/${owner}/${repo}.git"
+  
+  # Check if directory already exists
+  if [[ -d "$dir" ]] && [[ "$(ls -A "$dir" 2>/dev/null)" ]]; then
+    log "WARN" "Directory $dir already exists, skipping $owner/$repo"
+    return 0
+  fi
   
   log "INFO" "Cloning $owner/$repo (branch: $branch)"
   
@@ -30,7 +36,7 @@ clone_repo() {
     if [[ "$post_move" == "true" && -d "$dir" ]]; then
       log "INFO" "Moving contents of $dir to current directory"
       find "$dir" -maxdepth 1 -mindepth 1 -exec mv -n {} ./ \; 2>/dev/null || true
-      rm -rf "$dir" 2>/dev/null || true
+      rmdir "$dir" 2>/dev/null || true
     fi
     return 0
   else
@@ -47,54 +53,32 @@ main() {
     exit 1
   fi
   
-  log "INFO" "Reading sources from $json_file"
-  
-  # Parse JSON and extract critical group
-  local sources=$(cat "$json_file" | jq -r '.sources[] | select(.group == "critical") | "\(.owner) \(.repo) \(.branch // "master") \(.target // "") \(.post_move // false)"')
+  # Get unique sources by owner/repo
+  local sources=$(cat "$json_file" | jq -r '.sources[] | "\(.owner) \(.repo) \(.branch // "main") \(.target // "") \(.post_move // false)"' | sort -u)
   
   if [[ -z "$sources" ]]; then
-    log "ERROR" "No critical sources found"
+    log "ERROR" "No sources found"
     exit 1
   fi
   
-  log "INFO" "Starting clone for critical group"
+  # Count unique sources
+  local total=$(echo "$sources" | wc -l)
+  log "INFO" "Starting clone for $total unique repositories"
   
   local success=0
   local failed=0
-  local pids=()
   
-  # Start clones in parallel (max 2 at a time)
+  # Clone sequentially to avoid issues
   while IFS= read -r line; do
-    # Wait if we have 2 running processes
-    while [[ ${#pids[@]} -ge $MAX_PARALLEL ]]; do
-      for i in "${!pids[@]}"; do
-        if ! kill -0 "${pids[$i]}" 2>/dev/null; then
-          wait "${pids[$i]}" 2>/dev/null
-          unset 'pids[$i]'
-        fi
-      done
-      pids=("${pids[@]}")
-      sleep 1
-    done
-    
-    # Start new clone
-    (
-      clone_repo $line
-    ) &
-    pids+=($!)
-    log "INFO" "Started PID: ${pids[-1]}"
-    
-  done <<< "$sources"
-  
-  # Wait for all remaining clones
-  log "INFO" "Waiting for all clones to complete..."
-  for pid in "${pids[@]}"; do
-    if wait "$pid" 2>/dev/null; then
+    if clone_repo $line; then
       ((success++))
     else
       ((failed++))
+      if [[ $failed -gt 0 ]] && [[ $((success + failed)) -lt $total ]]; then
+        log "WARN" "Continuing with next repository..."
+      fi
     fi
-  done
+  done <<< "$sources"
   
   log "INFO" "Clone completed: $success successful, $failed failed"
   
