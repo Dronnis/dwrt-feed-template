@@ -191,7 +191,8 @@ post_process() {
     echo "🔧 Running post-processing..."
     
     # Удаляем .git директории
-    find . -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
+    echo "🔧 Cleaning up .git directories in packages (keeping root .git)"
+    find . -maxdepth 2 -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
     
     # Копируем пользовательские пакеты если есть
     if [ -d ".github/diy/packages" ]; then
@@ -244,6 +245,12 @@ update_versions() {
 # Main
 main() {
     echo "🚀 Starting merge manager..."
+    
+    if [ ! -d ".git" ]; then
+        echo "❌ Not in a git repository! Exiting."
+        exit 1
+    fi
+
     echo "📁 Config file: $CONFIG_FILE"
     
     # Загрузка конфигурации
@@ -270,6 +277,12 @@ main() {
     process_repositories "$config_json"
     post_process "$config_json"
     update_versions
+
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "✅ Changes detected, ready to commit"
+    else
+        echo "ℹ️ No changes - everything is up to date"
+    fi
     
     echo "🎉 Merge completed successfully!"
 }
