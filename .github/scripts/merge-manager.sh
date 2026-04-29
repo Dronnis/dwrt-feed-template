@@ -73,15 +73,21 @@ except:
 " 2>/dev/null
 }
 
-# Инициализация
+# Инициализация - НЕ удаляем существующие файлы полностью
 init() {
     shopt -s extglob
     set +e
     
-    echo "🧹 Cleaning workspace..."
+    echo "🧹 Cleaning workspace (keeping .git)..."
     
-    git rm -r --cache * >/dev/null 2>&1 || true
-    find ./* -maxdepth 0 -type d ! -name ".github" -exec rm -rf {} + 2>/dev/null || true
+    # Удаляем только файлы, но не .git
+    git rm -r --cached * >/dev/null 2>&1 || true
+    
+    # Удаляем все директории кроме .git и .github
+    find . -maxdepth 1 -type d ! -name "." ! -name ".git" ! -name ".github" -exec rm -rf {} + 2>/dev/null || true
+    
+    # Удаляем файлы в корне кроме .gitignore
+    find . -maxdepth 1 -type f ! -name ".gitignore" ! -name ".git" -delete 2>/dev/null || true
     
     # Настройка git
     local git_email=$(get_config_value "settings.git_user_email")
@@ -103,6 +109,12 @@ git_clone() {
     local url="$1"
     local dest="${2:-}"
     
+    # Пропускаем если директория уже существует
+    if [ -n "$dest" ] && [ -d "$dest" ]; then
+        echo "⚠️ Directory $dest already exists, skipping..."
+        return 0
+    fi
+    
     if [ -n "$dest" ]; then
         echo "📦 Cloning $url -> $dest"
         git clone --depth 1 "$url" "$dest" 2>&1 | head -3 || {
@@ -110,6 +122,11 @@ git_clone() {
             return 1
         }
     else
+        local name=$(basename "$url" .git)
+        if [ -d "$name" ]; then
+            echo "⚠️ Directory $name already exists, skipping..."
+            return 0
+        fi
         echo "📦 Cloning $url"
         git clone --depth 1 "$url" 2>&1 | head -3 || {
             echo "⚠️ Failed to clone $url"
@@ -139,8 +156,7 @@ process_repositories() {
     
     echo "📥 Processing repositories..."
     
-    # Получаем список категорий
-    local categories=$(echo "$config_json" | jq -r '.repositories | keys[]' 2>/dev/null | grep -v "muink" | grep -v "gspotx2f" | head -20)
+    local categories=$(echo "$config_json" | jq -r '.repositories | keys[]' 2>/dev/null | head -20)
     
     if [ -z "$categories" ] || [ "$categories" = "null" ]; then
         echo "⚠️ No categories found in config"
@@ -190,8 +206,7 @@ post_process() {
     
     echo "🔧 Running post-processing..."
     
-    # Удаляем .git директории
-    echo "🔧 Cleaning up .git directories in packages (keeping root .git)"
+    # Удаляем .git директории ТОЛЬКО внутри пакетов (не корневой)
     find . -maxdepth 2 -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
     
     # Копируем пользовательские пакеты если есть
@@ -206,20 +221,6 @@ post_process() {
         find ".github/diy/patches" -type f -name '*.patch' -exec sh -c "patch -d './' -p1 -E -f --no-backup-if-mismatch -i '{}'" \; 2>/dev/null || true
     fi
     
-    # Дополнительные sed замены из конфига
-    local sed_count=$(echo "$config_json" | jq '.post_processing.sed_replacements | length' 2>/dev/null)
-    if [ -n "$sed_count" ] && [ "$sed_count" != "null" ] && [ "$sed_count" -gt 0 ]; then
-        echo "🔧 Running sed replacements"
-        for ((i=0; i<sed_count; i++)); do
-            local pattern=$(echo "$config_json" | jq -r ".post_processing.sed_replacements[$i].pattern // empty" 2>/dev/null)
-            local replacement=$(echo "$config_json" | jq -r ".post_processing.sed_replacements[$i].replacement // empty" 2>/dev/null)
-            
-            if [ -n "$pattern" ] && [ "$pattern" != "null" ] && [ -n "$replacement" ] && [ "$replacement" != "null" ]; then
-                find . -type f -name "Makefile" -exec sed -i "s|${pattern}|${replacement}|g" {} \; 2>/dev/null || true
-            fi
-        done
-    fi
-    
     echo "✅ Post-processing completed"
 }
 
@@ -227,14 +228,15 @@ post_process() {
 update_versions() {
     echo "🔄 Updating package versions..."
     
-    local pkg_count=$(find . -name "Makefile" -not -path "*/luci-*" 2>/dev/null | wc -l)
+    local pkg_count=$(find . -name "Makefile" 2>/dev/null | wc -l)
     echo "📊 Found $pkg_count packages"
     
     # Обновляем PKG_RELEASE для каждого пакета
     for makefile in $(find . -name "Makefile" 2>/dev/null | head -50); do
         if grep -q "PKG_RELEASE" "$makefile" 2>/dev/null; then
             local pkg_dir=$(dirname "$makefile")
-            local rev_count=$(git rev-list --count HEAD "$pkg_dir" 2>/dev/null || echo "1")
+            # Используем количество коммитов в этом пакете
+            local rev_count=$(git rev-list --count HEAD -- "$pkg_dir" 2>/dev/null || echo "1")
             sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$rev_count/" "$makefile" 2>/dev/null || true
         fi
     done
@@ -245,17 +247,15 @@ update_versions() {
 # Main
 main() {
     echo "🚀 Starting merge manager..."
-    
-    # Сохраняем корень репозитория
-    export REPO_ROOT="$(pwd)"
+    echo "📁 Config file: $CONFIG_FILE"
+    echo "📁 Current directory: $(pwd)"
     
     # Проверяем, что мы в git репозитории
     if [ ! -d ".git" ]; then
-        echo "❌ Not in a git repository! Exiting."
+        echo "❌ Not in a git repository! Current dir: $(pwd)"
+        echo "📁 Contents: $(ls -la)"
         exit 1
     fi
-
-    echo "📁 Config file: $CONFIG_FILE"
     
     # Загрузка конфигурации
     local config_json=$(parse_yaml "$CONFIG_FILE")
@@ -281,7 +281,19 @@ main() {
     process_repositories "$config_json"
     post_process "$config_json"
     update_versions
-   
+    
+    # Показываем статус изменений
+    echo ""
+    echo "📊 Git status after changes:"
+    git status --short | head -20
+    
+    local changes=$(git status --porcelain | wc -l)
+    if [ "$changes" -gt 0 ]; then
+        echo "✅ $changes files changed"
+    else
+        echo "ℹ️ No changes detected"
+    fi
+    
     echo "🎉 Merge completed successfully!"
 }
 

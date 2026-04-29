@@ -62,20 +62,28 @@ jobs:
       uses: kiddin9/debugger-action@master
       if: github.event.inputs.ssh == 'true'
 
+    - name: Check for changes
+      run: |
+        echo "🔍 Checking for changes..."
+        git status
+        git diff --stat
+        echo "Number of changed files: $(git status --porcelain | wc -l)"
+
     - name: Commit and push
       run: |
-        # Возвращаемся в корень репозитория
         cd "$GITHUB_WORKSPACE"
         
-        # Проверяем, есть ли изменения
-        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-          Emojis=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🚀" "🛸" "🌈" "🔥" "🐶" "🦄")
-          git add .
-          git commit -m "${Emojis[$RANDOM % ${#Emojis[@]}]} Sync $(date +'%Y-%m-%d %H:%M:%S')"
-          git push origin main
-          echo "✅ Changes pushed successfully"
+        # Добавляем все изменения
+        git add .
+        
+        # Проверяем, есть ли изменения для коммита
+        if git diff --cached --quiet; then
+        echo "ℹ️ No changes to commit"
         else
-          echo "ℹ️ No changes to commit"
+        Emojis=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🚀" "🛸" "🌈" "🔥" "🐶" "🦄")
+        git commit -m "${Emojis[$RANDOM % ${#Emojis[@]}]} Sync $(date +'%Y-%m-%d %H:%M:%S')"
+        git push origin main
+        echo "✅ Changes pushed successfully"
         fi
 
     - name: Cleanup workflow runs
