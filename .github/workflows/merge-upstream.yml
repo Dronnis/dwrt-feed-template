@@ -9,11 +9,6 @@ on:
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
-    inputs:
-      ssh:
-        description: 'Enable SSH'
-        required: false
-        default: 'false'
 
 jobs:
   merge:
@@ -25,6 +20,7 @@ jobs:
       
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
     
+    
     steps:
     - name: Checkout
       uses: actions/checkout@main
@@ -33,7 +29,7 @@ jobs:
         persist-credentials: true
 
     - name: Setup Python
-      uses: actions/setup-python@v5  # Обновляем до v5
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -48,42 +44,34 @@ jobs:
       with:
         credentials: https://Dronnis:${{ secrets.TOKEN }}@github.com/
 
-    - name: Set git identity
-      run: |
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
-
     - name: Run merge manager
       run: |
         chmod +x .github/scripts/*.sh
         .github/scripts/merge-manager.sh
 
-    - name: SSH debug
-      uses: kiddin9/debugger-action@master
-      if: github.event.inputs.ssh == 'true'
-
-    - name: Check for changes
-      run: |
-        echo "🔍 Checking for changes..."
-        git status
-        git diff --stat
-        echo "Number of changed files: $(git status --porcelain | wc -l)"
-
-    - name: Commit and push
+    - name: Commit and push changes
       run: |
         cd "$GITHUB_WORKSPACE"
+        
+        # Проверяем, что .git существует
+        if [ ! -d ".git" ]; then
+          echo "❌ ERROR: .git directory not found!"
+          exit 1
+        fi
         
         # Добавляем все изменения
         git add .
         
         # Проверяем, есть ли изменения для коммита
         if git diff --cached --quiet; then
-        echo "ℹ️ No changes to commit"
+          echo "ℹ️ No changes to commit"
         else
-        Emojis=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🚀" "🛸" "🌈" "🔥" "🐶" "🦄")
-        git commit -m "${Emojis[$RANDOM % ${#Emojis[@]}]} Sync $(date +'%Y-%m-%d %H:%M:%S')"
-        git push origin main
-        echo "✅ Changes pushed successfully"
+          echo "📝 Changes detected, committing..."
+          git status --short
+          Emojis=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🚀" "🌈" "🔥" "🦄")
+          git commit -m "${Emojis[$RANDOM % ${#Emojis[@]}]} Sync $(date +'%Y-%m-%d %H:%M:%S')"
+          git push origin main
+          echo "✅ Changes pushed successfully"
         fi
 
     - name: Cleanup workflow runs
@@ -92,4 +80,4 @@ jobs:
       with:
         retain_days: 1
         keep_minimum_runs: 3
-        token: ${{ secrets.TOKEN }}  # Явно передаем токен
+        token: ${{ secrets.TOKEN }}
