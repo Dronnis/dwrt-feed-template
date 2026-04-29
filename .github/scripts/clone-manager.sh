@@ -1,231 +1,112 @@
 #!/bin/bash
 set -euo pipefail
 
-MAX_PARALLEL="${MAX_PARALLEL_PER_GROUP:-5}"
+MAX_PARALLEL="${MAX_PARALLEL_PER_GROUP:-2}"
 MAX_RETRIES="${MAX_RETRIES:-2}"
 RETRY_DELAY="${RETRY_DELAY_BASE:-2}"
-CLONE_TIMEOUT="${CLONE_TIMEOUT_MIN:-5}"
-
-> /tmp/clone_progress.log
-declare -A grp_pids grp_count
-declare -a grp_order
+CLONE_TIMEOUT="${CLONE_TIMEOUT_MIN:-3}"
 
 log() { echo "[$(date '+%H:%M:%S')] [$1] $2" >&2; }
 
-wait_for_slot() {
-  local g="$1"
-  while [[ ${grp_count[$g]:-0} -ge $MAX_PARALLEL ]]; do
-    cleanup_group "$g"
-    sleep 1
-  done
-}
-
-cleanup_group() {
-  local g="$1" new_pids="" active=0
-  for pid in ${grp_pids[$g]:-}; do
-    if kill -0 "$pid" 2>/dev/null; then 
-      new_pids+=" $pid"
-      ((active++))
+clone_repo() {
+  local owner="$1"
+  local repo="$2"
+  local branch="${3:-master}"
+  local target="${4:-}"
+  local post_move="${5:-false}"
+  
+  local dir="${target:-$repo}"
+  local url="https://github.com/${owner}/${repo}.git"
+  
+  log "INFO" "Cloning $owner/$repo (branch: $branch)"
+  
+  set +e
+  timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --branch "$branch" "$url" "$dir" 2>&1
+  local ec=$?
+  set -e
+  
+  if [[ $ec -eq 0 ]]; then
+    log "INFO" "✅ Successfully cloned $owner/$repo"
+    if [[ "$post_move" == "true" && -d "$dir" ]]; then
+      log "INFO" "Moving contents of $dir to current directory"
+      find "$dir" -maxdepth 1 -mindepth 1 -exec mv -n {} ./ \; 2>/dev/null || true
+      rm -rf "$dir" 2>/dev/null || true
     fi
-  done
-  grp_pids[$g]="${new_pids# }"
-  grp_count[$g]=$active
-}
-
-wait_for_group() {
-  local g="$1"
-  local result_file="/tmp/clone_result_${g}_$$.tmp"
-  > "$result_file"
-  
-  for pid in ${grp_pids[$g]:-}; do 
-    set +e
-    wait "$pid" 2>/dev/null
-    local exit_code=$?
-    set -e
-    echo "$exit_code" >> "$result_file"
-  done
-  
-  grp_pids[$g]=""
-  grp_count[$g]=0
-  
-  echo "$result_file"
-}
-
-clone_with_retry() {
-  local g="$1" p="$2" o="$3" r="$4" b="${5:-master}" t="${6:-}" sp="$7" pa="$8" pm="$9" ex="${10}" mr="${11:-$MAX_RETRIES}"
-  local url="https://github.com/${o}/${r}.git"
-  local dir="${t:-${r}}"
-  local att=0 err=""
-  
-  while [[ $att -lt $mr ]]; do
-    ((att++))
-    local t0=$(date +%s) ec=0
-    log "INFO" "[${att}/${mr}] ${o}/${r}"
-    
-    if [[ "$sp" == "true" ]]; then
-      local td=$(mktemp -d)
-      set +e
-      timeout "${CLONE_TIMEOUT}m" git clone -b "$b" --depth=1 --filter=blob:none --sparse "$url" "$td" 2>&1
-      ec=$?
-      if [[ $ec -eq 0 ]]; then
-        cd "$td"
-        git sparse-checkout init --cone 2>/dev/null
-        git sparse-checkout set $pa 2>/dev/null
-        cd -
-        for pth in $pa; do 
-          if [[ -d "$td/$pth" ]]; then
-            mkdir -p "$(dirname "$pth")" 2>/dev/null || true
-            cp -rf "$td/$pth"/* "$(dirname "$pth")/" 2>/dev/null || true
-          fi
-        done
-      fi
-      rm -rf "$td"
-      set -e
-    else
-      set +e
-      timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>&1
-      ec=$?
-      if [[ $ec -eq 0 ]]; then
-        if [[ "$pm" == "true" && -d "$dir" ]]; then 
-          find "$dir" -maxdepth 1 -mindepth 1 -type d -exec mv -n {} ./ \; 2>/dev/null || true
-          rm -rf "$dir" 2>/dev/null || true
-        elif [[ -n "$ex" && -d "$dir" ]]; then 
-          for item in $ex; do 
-            if [[ -e "$dir/$item" ]]; then
-              mv -n "$dir/$item" ./ 2>/dev/null || true
-            fi
-          done
-          rm -rf "$dir" 2>/dev/null || true
-        fi
-      fi
-      set -e
-    fi
-    
-    local el=$(( $(date +%s) - t0 ))
-    if [[ $ec -eq 0 ]]; then
-      log "INFO" "✅ Done in ${el}s"
-      echo "${g}|${p}|${o}/${r}|ok|${el}|" >> /tmp/clone_progress.log
-      return 0
-    fi
-    err="Exit: $ec"
-    log "WARN" "❌ $err (${el}s)"
-    if [[ $att -lt $mr ]]; then
-      sleep $((RETRY_DELAY * att))
-    fi
-  done
-  
-  log "ERROR" "💥 Failed after $mr attempts"
-  echo "${g}|${p}|${o}/${r}|fail|${el}|${err}" >> /tmp/clone_progress.log
-  return 1
-}
-
-enqueue() {
-  local g="$1" src="$2"
-  wait_for_slot "$g"
-  
-  (
-    local priority=$(echo "$src" | jq -r '.priority // 99')
-    local owner=$(echo "$src" | jq -r '.owner')
-    local repo=$(echo "$src" | jq -r '.repo')
-    local branch=$(echo "$src" | jq -r '.branch // "master"')
-    local target=$(echo "$src" | jq -r '.target // empty')
-    local sparse=$(echo "$src" | jq -r '.sparse // false')
-    local paths=$(echo "$src" | jq -r '.paths // [] | join(" ")')
-    local post_move=$(echo "$src" | jq -r '.post_move // false')
-    local extract=$(echo "$src" | jq -r '.extract // [] | join(" ")')
-    local max_retries=$(echo "$src" | jq -r ".max_retries // env.MAX_RETRIES // 2")
-    
-    clone_with_retry "$g" "$priority" "$owner" "$repo" "$branch" "$target" "$sparse" "$paths" "$post_move" "$extract" "$max_retries"
-    exit $?
-  ) &
-  
-  local pid=$!
-  grp_count[$g]=$((${grp_count[$g]:-0} + 1))
-  grp_pids[$g]="${grp_pids[$g]:-} $pid"
-  log "INFO" "📋 $g: #${grp_count[$g]} (PID: $pid)"
+    return 0
+  else
+    log "ERROR" "❌ Failed to clone $owner/$repo (exit code: $ec)"
+    return 1
+  fi
 }
 
 main() {
-  local json="$1"
-  declare -A gmap
-  declare -a glist
-  declare -A gprio
+  local json_file="$1"
   
-  while IFS= read -r src; do
-    local g=$(echo "$src" | jq -r '.group // "default"')
-    gprio[$g]=$(echo "$src" | jq -r '.priority // 99')
-    gmap[$g]+="$src"$'\n'
-    local found=0
-    for existing in "${glist[@]}"; do
-      if [[ "$existing" == "$g" ]]; then
-        found=1
-        break
-      fi
-    done
-    if [[ $found -eq 0 ]]; then
-      glist+=("$g")
-    fi
-  done < <(echo "$json" | jq -c '.sources[]')
-  
-  # Sort groups by priority
-  local temp_file=$(mktemp)
-  for g in "${glist[@]}"; do
-    echo "${gprio[$g]} $g" >> "$temp_file"
-  done
-  
-  local sorted_groups=()
-  while IFS= read -r line; do
-    sorted_groups+=("${line#* }")
-  done < <(sort -n "$temp_file")
-  rm -f "$temp_file"
-  
-  if [[ ${#sorted_groups[@]} -gt 0 ]]; then
-    glist=("${sorted_groups[@]}")
+  if [[ ! -f "$json_file" ]]; then
+    log "ERROR" "JSON file not found: $json_file"
+    exit 1
   fi
   
-  log "INFO" "📦 Processing ${#glist[@]} groups"
-  local total_ok=0 total_fail=0
+  log "INFO" "Reading sources from $json_file"
   
-  for g in "${glist[@]}"; do
-    log "INFO" "🚀 Group: $g"
-    
-    # Запускаем все задачи группы
-    while IFS= read -r src; do
-      if [[ -n "$src" ]]; then
-        enqueue "$g" "$src"
-      fi
-    done <<< "${gmap[$g]}"
-    
-    # Ждем завершения всех задач группы
-    local result_file=$(wait_for_group "$g")
-    
-    # Подсчитываем результаты
-    local group_ok=0 group_fail=0
-    if [[ -f "$result_file" ]]; then
-      while IFS= read -r code; do
-        if [[ "$code" == "0" ]]; then
-          ((group_ok++))
-        else
-          ((group_fail++))
+  # Parse JSON and extract critical group
+  local sources=$(cat "$json_file" | jq -r '.sources[] | select(.group == "critical") | "\(.owner) \(.repo) \(.branch // "master") \(.target // "") \(.post_move // false)"')
+  
+  if [[ -z "$sources" ]]; then
+    log "ERROR" "No critical sources found"
+    exit 1
+  fi
+  
+  log "INFO" "Starting clone for critical group"
+  
+  local success=0
+  local failed=0
+  local pids=()
+  
+  # Start clones in parallel (max 2 at a time)
+  while IFS= read -r line; do
+    # Wait if we have 2 running processes
+    while [[ ${#pids[@]} -ge $MAX_PARALLEL ]]; do
+      for i in "${!pids[@]}"; do
+        if ! kill -0 "${pids[$i]}" 2>/dev/null; then
+          wait "${pids[$i]}" 2>/dev/null
+          unset 'pids[$i]'
         fi
-      done < "$result_file"
-      rm -f "$result_file"
-    fi
+      done
+      pids=("${pids[@]}")
+      sleep 1
+    done
     
-    total_ok=$((total_ok + group_ok))
-    total_fail=$((total_fail + group_fail))
-    log "INFO" "✅ Group '$g' done: $group_ok ok, $group_fail fail"
+    # Start new clone
+    (
+      clone_repo $line
+    ) &
+    pids+=($!)
+    log "INFO" "Started PID: ${pids[-1]}"
+    
+  done <<< "$sources"
+  
+  # Wait for all remaining clones
+  log "INFO" "Waiting for all clones to complete..."
+  for pid in "${pids[@]}"; do
+    if wait "$pid" 2>/dev/null; then
+      ((success++))
+    else
+      ((failed++))
+    fi
   done
   
-  echo "total_ok=$total_ok total_fail=$total_fail" >> /tmp/clone_summary.env
+  log "INFO" "Clone completed: $success successful, $failed failed"
   
-  # Выводим для захвата в GitHub Actions
-  echo "total_ok=$total_ok"
-  echo "total_fail=$total_fail"
-  
-  if [[ $total_fail -gt 0 ]]; then
+  if [[ $failed -gt 0 ]]; then
     exit 1
   fi
 }
 
-main "${1:-}"
+# Write JSON to temp file if argument is JSON string
+if [[ "$1" == *"{"* ]]; then
+  echo "$1" > /tmp/sources.json
+  main "/tmp/sources.json"
+else
+  main "$1"
+fi
