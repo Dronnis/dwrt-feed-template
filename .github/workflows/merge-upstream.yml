@@ -33,9 +33,9 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install pyyaml jq
         sudo apt-get update
-        sudo apt-get install -y moreutils parallel
+        sudo apt-get install -y jq moreutils
+        pip3 install pyyaml --break-system-packages 2>/dev/null || pip3 install pyyaml
 
     - name: Setup Git credentials
       uses: de-vri-es/setup-git-credentials@v2
