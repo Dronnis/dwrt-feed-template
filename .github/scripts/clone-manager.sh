@@ -15,7 +15,6 @@ log() { echo "[$(date '+%H:%M:%S')] [$1] $2" >&2; }
 wait_for_slot() {
   local g="$1"
   while [[ ${grp_count[$g]:-0} -ge $MAX_PARALLEL ]]; do
-    # Очищаем мертвые процессы перед проверкой
     cleanup_group "$g"
     sleep 1
   done
@@ -35,19 +34,20 @@ cleanup_group() {
 
 wait_for_group() {
   local g="$1"
-  local result_file="/tmp/clone_result_$$.tmp"
+  local result_file="/tmp/clone_result_${g}_$$.tmp"
+  > "$result_file"
   
   for pid in ${grp_pids[$g]:-}; do 
-    # Ждем конкретный процесс и сохраняем его exit code
+    set +e
     wait "$pid" 2>/dev/null
     local exit_code=$?
+    set -e
     echo "$exit_code" >> "$result_file"
   done
   
   grp_pids[$g]=""
   grp_count[$g]=0
   
-  # Возвращаем файл с результатами для обработки
   echo "$result_file"
 }
 
@@ -64,36 +64,41 @@ clone_with_retry() {
     
     if [[ "$sp" == "true" ]]; then
       local td=$(mktemp -d)
-      # Используем trap для очистки
-      ( 
-        trap "rm -rf '$td'" EXIT
-        timeout "${CLONE_TIMEOUT}m" git clone -b "$b" --depth=1 --filter=blob:none --sparse "$url" "$td" 2>/dev/null || exit $?
-        cd "$td" || exit 1
-        git sparse-checkout init --cone || exit 1
-        git sparse-checkout set $pa || exit 1
+      set +e
+      timeout "${CLONE_TIMEOUT}m" git clone -b "$b" --depth=1 --filter=blob:none --sparse "$url" "$td" 2>&1
+      ec=$?
+      if [[ $ec -eq 0 ]]; then
+        cd "$td"
+        git sparse-checkout init --cone 2>/dev/null
+        git sparse-checkout set $pa 2>/dev/null
+        cd -
         for pth in $pa; do 
-          if [[ -d "$pth" ]]; then
-            mv -n "$pth" "$OLDPWD/" 2>/dev/null || true
+          if [[ -d "$td/$pth" ]]; then
+            mkdir -p "$(dirname "$pth")" 2>/dev/null || true
+            cp -rf "$td/$pth"/* "$(dirname "$pth")/" 2>/dev/null || true
           fi
         done
-      )
-      ec=$?
+      fi
+      rm -rf "$td"
+      set -e
     else
-      timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>/dev/null
+      set +e
+      timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>&1
       ec=$?
       if [[ $ec -eq 0 ]]; then
         if [[ "$pm" == "true" && -d "$dir" ]]; then 
-          find "$dir" -maxdepth 1 -mindepth 1 -type d -exec mv -n {} ./ \; 2>/dev/null
-          rm -rf "$dir"
+          find "$dir" -maxdepth 1 -mindepth 1 -type d -exec mv -n {} ./ \; 2>/dev/null || true
+          rm -rf "$dir" 2>/dev/null || true
         elif [[ -n "$ex" && -d "$dir" ]]; then 
           for item in $ex; do 
             if [[ -e "$dir/$item" ]]; then
               mv -n "$dir/$item" ./ 2>/dev/null || true
             fi
           done
-          rm -rf "$dir"
+          rm -rf "$dir" 2>/dev/null || true
         fi
       fi
+      set -e
     fi
     
     local el=$(( $(date +%s) - t0 ))
@@ -217,6 +222,10 @@ main() {
   # Выводим для захвата в GitHub Actions
   echo "total_ok=$total_ok"
   echo "total_fail=$total_fail"
+  
+  if [[ $total_fail -gt 0 ]]; then
+    exit 1
+  fi
 }
 
 main "${1:-}"
