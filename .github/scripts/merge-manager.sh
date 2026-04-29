@@ -246,6 +246,10 @@ update_versions() {
 main() {
     echo "🚀 Starting merge manager..."
     
+    # Сохраняем корень репозитория
+    export REPO_ROOT="$(pwd)"
+    
+    # Проверяем, что мы в git репозитории
     if [ ! -d ".git" ]; then
         echo "❌ Not in a git repository! Exiting."
         exit 1
@@ -277,13 +281,7 @@ main() {
     process_repositories "$config_json"
     post_process "$config_json"
     update_versions
-
-    if [ -n "$(git status --porcelain)" ]; then
-        echo "✅ Changes detected, ready to commit"
-    else
-        echo "ℹ️ No changes - everything is up to date"
-    fi
-    
+   
     echo "🎉 Merge completed successfully!"
 }
 

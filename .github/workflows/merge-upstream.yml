@@ -18,6 +18,11 @@ on:
 jobs:
   merge:
     runs-on: ubuntu-latest
+    # Добавляем правильные права доступа
+    permissions:
+      contents: write
+      actions: write  # Для удаления workflow runs
+      
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
     
     steps:
@@ -28,7 +33,7 @@ jobs:
         persist-credentials: true
 
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5  # Обновляем до v5
       with:
         python-version: '3.11'
     
@@ -36,7 +41,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y jq moreutils
-        pip3 install pyyaml --break-system-packages 2>/dev/null || pip3 install pyyaml
+        pip3 install pyyaml
 
     - name: Setup Git credentials
       uses: de-vri-es/setup-git-credentials@v2
@@ -59,8 +64,11 @@ jobs:
 
     - name: Commit and push
       run: |
+        # Возвращаемся в корень репозитория
+        cd "$GITHUB_WORKSPACE"
+        
         # Проверяем, есть ли изменения
-        if [ -n "$(git status --porcelain)" ]; then
+        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
           Emojis=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🚀" "🛸" "🌈" "🔥" "🐶" "🦄")
           git add .
           git commit -m "${Emojis[$RANDOM % ${#Emojis[@]}]} Sync $(date +'%Y-%m-%d %H:%M:%S')"
@@ -76,3 +84,4 @@ jobs:
       with:
         retain_days: 1
         keep_minimum_runs: 3
+        token: ${{ secrets.TOKEN }}  # Явно передаем токен
