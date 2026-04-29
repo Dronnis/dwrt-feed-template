@@ -57,23 +57,20 @@ jobs:
           init_metrics
           start_timer "clone_repos"
           
-          export MAX_PARALLEL_PER_GROUP=2
+          export MAX_PARALLEL_PER_GROUP=1  # Sequential mode
           export MAX_RETRIES=2 
           export RETRY_DELAY_BASE=2 
-          export CLONE_TIMEOUT_MIN=3
+          export CLONE_TIMEOUT_MIN=5  # Increase timeout
           
-          # Save JSON to file
           echo '${{ steps.prep.outputs.sources_json }}' > /tmp/full_sources.json
           
-          # Filter only critical group for testing
+          # Filter only critical group
           jq '.sources |= map(select(.group == "critical"))' /tmp/full_sources.json > /tmp/test.json
           
-          # Debug output
           echo "=== Test JSON content ==="
-          cat /tmp/test.json | jq '.sources[].owner + "/" + .sources[].repo'
+          cat /tmp/test.json | jq -r '.sources[] | "\(.owner)/\(.repo) (\(.branch // "main"))"'
           echo "========================"
           
-          # Run clone manager
           bash .github/scripts/clone-manager.sh /tmp/test.json
           
           end_timer "clone_repos"
