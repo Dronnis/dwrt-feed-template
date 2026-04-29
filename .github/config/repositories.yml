@@ -1,180 +1,618 @@
-# Основные настройки
+# ============================================
+# ПОЛНАЯ КОНФИГУРАЦИЯ ВСЕХ РЕПОЗИТОРИЕВ
+# ============================================
+
 settings:
   timezone: "Asia/Shanghai"
   git_user_email: "github-actions[bot]@users.noreply.github.com"
   git_user_name: "github-actions[bot]"
-  parallel_jobs: 8  # Параллельных загрузок
-  default_branch: "master"
-  
-  # Исключения для автообновления версий
-  version_auto_update_exclude:
-    - "luci-app-store"
-    - "naiveproxy"
-    - "luci-app-quickstart"
-  
-  # Исключения для PKG_RELEASE
-  pkg_release_exclude:
-    - "naiveproxy"
-    - "luci-app-store"
+  parallel_jobs: 4
 
-# Категории репозиториев
+# ============================================
+# РЕПОЗИТОРИИ
+# ============================================
+
 repositories:
-  
-  # Основные (kiddin9)
-  core:
+  # 1. KIDDIN9 ОСНОВНЫЕ
+  kiddin9_core:
     - name: my-packages
       url: https://github.com/kiddin9/my-packages
-      type: full
       action: mvdir
-      
     - name: openwrt-bypass
       url: https://github.com/kiddin9/openwrt-bypass
-      type: full
       action: mvdir
-      
     - name: luci-app-dnsfilter
       url: https://github.com/kiddin9/luci-app-dnsfilter
-      type: full
-      
+    - name: aria2
+      url: https://github.com/kiddin9/aria2
     - name: luci-theme-edge
       url: https://github.com/kiddin9/luci-theme-edge
-      type: full
+    - name: luci-app-xlnetacc
+      url: https://github.com/kiddin9/luci-app-xlnetacc
+    - name: luci-app-wizard
+      url: https://github.com/kiddin9/luci-app-wizard
+    - name: luci-app-adguardhome
+      url: https://github.com/kiddin9/luci-app-adguardhome
+    - name: luci-app-cloudreve
+      url: https://github.com/kiddin9/luci-app-cloudreve
+    - name: openwrt-filebrowser
+      url: https://github.com/kiddin9/openwrt-filebrowser
+      action: mvdir
+    - name: openwrt-netdata
+      url: https://github.com/kiddin9/openwrt-netdata
+      target_dir: netdata
+    - name: luci-app-syscontrol
+      url: https://github.com/kiddin9/luci-app-syscontrol
+    - name: luci-app-chinadns-ng
+      url: https://github.com/kiddin9/luci-app-chinadns-ng
+    - name: openwrt-my-dnshelper
+      url: https://github.com/kiddin9/openwrt-my-dnshelper
+      action: mvdir
+    - name: openwrt-lingtigameacc
+      url: https://github.com/kiddin9/openwrt-lingtigameacc
+      action: mvdir
+    - name: luci-app-vsftpd
+      url: https://github.com/kiddin9/luci-app-vsftpd
+    - name: openwrt-subconverter
+      url: https://github.com/kiddin9/openwrt-subconverter
+      action: mvdir
+    - name: luci-app-syncdial
+      url: https://github.com/kiddin9/luci-app-syncdial
 
-  # Passwall и подобные
-  proxy:
+  # 2. PASSWALL
+  passwall:
     - name: openwrt-passwall
       url: https://github.com/Openwrt-Passwall/openwrt-passwall
-      type: full
       action: mvdir
-      
     - name: openwrt-passwall-packages
       url: https://github.com/Openwrt-Passwall/openwrt-passwall-packages
-      type: full
       action: mvdir
-      
+    - name: openwrt-passwall2
+      url: https://github.com/Openwrt-Passwall/openwrt-passwall2
+      target_dir: passwall2
+      custom_action: mv passwall2/luci-app-passwall2 ./ && rm -rf passwall2
+
+  # 3. HELLOWORLD
+  helloworld:
     - name: helloworld
       url: https://github.com/fw876/helloworld
-      type: full
       action: mvdir
 
-  # sirpdboy пакеты
+  # 4. LIENOL
+  lienol:
+    - name: openwrt-package
+      url: https://github.com/Lienol/openwrt-package
+      target_dir: liep
+      post_process: rm -rf liep/other
+
+  # 5. ПРОКСИ И УТИЛИТЫ
+  proxy_utils:
+    - name: luci-app-autoipsetadder
+      url: https://github.com/rufengsuixing/luci-app-autoipsetadder
+    - name: luci-app-beardropper
+      url: https://github.com/NateLol/luci-app-beardropper
+    - name: openwrt-iptvhelper
+      url: https://github.com/riverscn/openwrt-iptvhelper
+      action: mvdir
+    - name: luci-app-timedreboot
+      url: https://github.com/kongfl888/luci-app-timedreboot
+    - name: luci-app-webdav
+      url: https://github.com/sbwml/luci-app-webdav
+    - name: package_kernel_tcp-brutal
+      url: https://github.com/sbwml/package_kernel_tcp-brutal
+    - name: luci-app-qosmate
+      url: https://github.com/hudra0/luci-app-qosmate
+    - name: luci-app-mosdns
+      url: https://github.com/sbwml/luci-app-mosdns
+      target_dir: openwrt-mos
+      custom_action: mv -n openwrt-mos/{*mosdns,v2dat} ./ && rm -rf openwrt-mos
+
+  # 6. SIRPDBOY
   sirpdboy:
     - name: luci-app-advancedplus
       url: https://github.com/sirpdboy/luci-app-advancedplus
-      type: full
-      
     - name: luci-app-taskplan
       url: https://github.com/sirpdboy/luci-app-taskplan
-      type: full
-      action: mvdir
       target_dir: taskplan
-      
+      action: mvdir
     - name: luci-app-lucky
       url: https://github.com/sirpdboy/luci-app-lucky
-      type: full
-      action: mvdir
       target_dir: oplucky
+      action: mvdir
+    - name: luci-app-partexp
+      url: https://github.com/sirpdboy/luci-app-partexp
+      target_dir: partexp
+      action: mvdir
+    - name: netspeedtest
+      url: https://github.com/sirpdboy/netspeedtest
+      target_dir: speedtest
+      action: mvdir
+    - name: luci-app-parentcontrol
+      url: https://github.com/sirpdboy/luci-app-parentcontrol
+    - name: luci-app-poweroffdevice
+      url: https://github.com/sirpdboy/luci-app-poweroffdevice
+      target_dir: poweroffdevice
+      action: mvdir
+    - name: luci-app-watchdog
+      url: https://github.com/sirpdboy/luci-app-watchdog
+      target_dir: watchdog1
+      action: mvdir
+    - name: luci-app-cupsd
+      url: https://github.com/sirpdboy/luci-app-cupsd
+      target_dir: cupsd1
+      custom_action: mv -n cupsd1/{luci-app-cupsd,cups} ./ && rm -rf cupsd1
+    - name: luci-app-timecontrol
+      url: https://github.com/sirpdboy/luci-app-timecontrol
+      target_dir: timecontrol
+      action: mvdir
+    - name: luci-theme-kucat
+      url: https://github.com/sirpdboy/luci-theme-kucat
+    - name: luci-app-kucat-config
+      url: https://github.com/sirpdboy/luci-app-kucat-config
+    - name: luci-app-chatgpt-web
+      url: https://github.com/sirpdboy/luci-app-chatgpt-web
+    - name: luci-app-eqosplus
+      url: https://github.com/sirpdboy/luci-app-eqosplus
+    - name: luci-app-netdata
+      url: https://github.com/sirpdboy/luci-app-netdata
+      target_dir: lucinetdata
+      custom_action: mv lucinetdata/luci-app-netdata ./ && rm -rf lucinetdata
 
-  # Sparse checkouts (частичные клоны)
-  sparse:
-    - name: lede-packages
-      url: https://github.com/coolsnowwolf/lede
-      branch: master
-      sparse_paths:
-        - package/wwan
-        - package/lean
-        - package/network/services/shellsync
-        - package/qca/shortcut-fe
-      action: copy_sparse
-      
-    - name: immortalwrt-packages
-      url: https://github.com/immortalwrt/packages
-      branch: openwrt-25.12
-      sparse_paths:
-        - net/n2n
-        - net/dae
-        - net/frp
-        - net/smartdns
-        - net/miniupnpd
-      action: copy_sparse
+  # 7. OPENAPPPFILTER
+  openappfilter:
+    - name: OpenAppFilter
+      url: https://github.com/destan19/OpenAppFilter
+      action: mvdir
 
-  # Специальные (с преобразованиями)
-  special:
-    - name: luci-app-mosdns
-      url: https://github.com/sbwml/luci-app-mosdns
-      type: custom
-      action: custom_mosdns
-      source_repo: openwrt-mos
-      files_to_copy:
-        - "*/mosdns"
-        - "*/v2dat"
-        
-    - name: aliyundrive-webdav
-      url: https://github.com/messense/aliyundrive-webdav
-      type: custom
-      action: copy_subdir
-      source_path: openwrt
-      
-  # muink пакеты (много маленьких репозиториев)
-  muink:
-    group: true
-    base_url: https://github.com/muink
-    repositories:
-      - name: luci-app-dnsproxy
-      - name: luci-app-einat
-      - name: openwrt-einat-ebpf
-      - name: openwrt-natmapt
-      - name: luci-app-natmapt
-      - name: openwrt-stuntman
-      - name: openwrt-alwaysonline
-      - name: luci-app-alwaysonline
+  # 8. DNS И СЕТЕВЫЕ УТИЛИТЫ
+  network_dns:
+    - name: luci-app-dnsmasq-ipset
+      url: https://github.com/lvqier/luci-app-dnsmasq-ipset
+    - name: luci-app-wifidog
+      url: https://github.com/walkingsky/luci-wifidog
+      target_dir: luci-app-wifidog
+    - name: luci-app-autorepeater
+      url: https://github.com/peter-tank/luci-app-autorepeater
+    - name: luci-app-wrtbwmon
+      url: https://github.com/brvphoenix/luci-app-wrtbwmon
+      target_dir: wrtbwmon1
+      action: mvdir
+    - name: wrtbwmon
+      url: https://github.com/brvphoenix/wrtbwmon
+      target_dir: wrtbwmon2
+      action: mvdir
+    - name: luci-app-bandix
+      url: https://github.com/timsaya/luci-app-bandix
+      target_dir: bandix1
+      custom_action: mv -f bandix1/luci-app-bandix ./ && rm -rf bandix1
+    - name: openwrt-bandix
+      url: https://github.com/timsaya/openwrt-bandix
+      target_dir: bandix2
+      custom_action: mv -f bandix2/openwrt-bandix ./ && rm -rf bandix2
 
-  # gSpotx2f пакеты
-  gspotx2f:
-    group: true
-    base_url: https://github.com/gSpotx2f
-    repositories:
-      - name: luci-app-temp-status
-      - name: luci-app-cpu-perf
-      - name: luci-app-log
-      - name: luci-app-disks-info
-      - name: luci-app-interfaces-statistics
+  # 9. CLOUD И TENСENT
+  cloud:
+    - name: tencentcloud-ddns
+      url: https://github.com/everburstSun/tencentcloud-openwrt-plugin-ddns
+      custom_action: mv -n tencentcloud-openwrt-plugin-ddns/tencentcloud_ddns ./luci-app-tencentddns && rm -rf tencentcloud-openwrt-plugin-ddns
+    - name: tencentcloud-cos
+      url: https://github.com/Tencent-Cloud-Plugins/tencentcloud-openwrt-plugin-cos
+      custom_action: mv -n tencentcloud-openwrt-plugin-cos/tencentcloud_cos ./luci-app-tencentcloud-cos && rm -rf tencentcloud-openwrt-plugin-cos
+    - name: luci-app-shortcutmenu
+      url: https://github.com/doushang/luci-app-shortcutmenu
+      target_dir: luci-shortcutmenu
+      custom_action: mv -n luci-shortcutmenu/luci-app-shortcutmenu ./ && rm -rf luci-shortcutmenu
+    - name: openwrt-dist-luci
+      url: https://github.com/aa65535/openwrt-dist-luci
 
-# Пост-обработка
+  # 10. AMLOGIC И NAS
+  amlogic_nas:
+    - name: luci-app-amlogic
+      url: https://github.com/ophub/luci-app-amlogic
+      target_dir: amlogic
+      custom_action: mv -n amlogic/luci-app-amlogic ./ && rm -rf amlogic
+    - name: luci-app-cloudflarespeedtest
+      url: https://github.com/mingxiaoyu/luci-app-cloudflarespeedtest
+      target_dir: cloudflarespeedtest
+      custom_action: mv -n cloudflarespeedtest/applications/* ./ && rm -rf cloudflarespeedtest
+    - name: nas-packages
+      url: https://github.com/linkease/nas-packages
+      custom_action: mv -n nas-packages/network/services/* ./ && rm -rf nas-packages
+    - name: nas-packages-luci
+      url: https://github.com/linkease/nas-packages-luci
+      custom_action: mv -n nas-packages-luci/luci/* ./ && rm -rf nas-packages-luci
+    - name: istore
+      url: https://github.com/linkease/istore
+      custom_action: mv -n istore/luci/* ./ && rm -rf istore
+    - name: openwrt-fchomo
+      url: https://github.com/fcshark-org/openwrt-fchomo
+      action: mvdir
+
+  # 11. CLASH И ТУННЕЛИ
+  clash_tunnels:
+    - name: luci-app-clash
+      url: https://github.com/frainzy1477/luci-app-clash
+    - name: luci-app-fullconenat
+      url: https://github.com/peter-tank/luci-app-fullconenat
+    - name: luci-app-tcpdump
+      url: https://github.com/KFERMercer/luci-app-tcpdump
+    - name: pikpak-webdav
+      url: https://github.com/ykxVK8yL5L/pikpak-webdav
+      target_dir: pikpak
+      custom_action: mv -n pikpak/openwrt/* ./ && rm -rf pikpak
+    - name: openwrt-apps
+      url: https://github.com/jjm2473/openwrt-apps
+    - name: OpenWrt-nikki
+      url: https://github.com/nikkinikki-org/OpenWrt-nikki
+      custom_action: mv -f OpenWrt-nikki/{luci-app-nikki,nikki,mihomo*} ./ && rm -rf OpenWrt-nikki
+    - name: OpenWrt-momo
+      url: https://github.com/nikkinikki-org/OpenWrt-momo
+      custom_action: mv -f OpenWrt-momo/{luci-app-momo,momo} ./ && rm -rf OpenWrt-momo
+
+  # 12. SPEEDTEST И МОНИТОРИНГ
+  monitoring:
+    - name: speedtest-web
+      url: https://github.com/ZeaKyX/speedtest-web
+    - name: luci-app-speedtest-web
+      url: https://github.com/ZeaKyX/luci-app-speedtest-web
+    - name: openwrt-app-actions
+      url: https://github.com/linkease/openwrt-app-actions
+    - name: luci-app-suselogin
+      url: https://github.com/Wulnut/luci-app-suselogin
+    - name: openwrt-dogcom
+      url: https://github.com/mchome/openwrt-dogcom
+    - name: luci-app-brukamen
+      url: https://github.com/lucikap/luci-app-brukamen
+      custom_action: mv -n luci-app-brukamen/luci* ./ && rm -rf luci-app-brukamen
+    - name: luci-app-xray
+      url: https://github.com/yichya/luci-app-xray
+      target_dir: yichya
+      custom_action: mv -f yichya/status ./luci-app-xray-status && mv -f yichya/core ./luci-app-xray && rm -rf yichya
+    - name: luci-app-xjay
+      url: https://github.com/rafmilecki/luci-app-xjay
+    - name: luci-app-timewol
+      url: https://github.com/lwb1978/luci-app-timewol
+
+  # 13. DNS ПРОВАЙДЕРЫ
+  dns_providers:
+    - name: luci-app-aliddns
+      url: https://github.com/honwen/luci-app-aliddns
+    - name: luci-app-dnscrypt-proxy2
+      url: https://github.com/peter-tank/luci-app-dnscrypt-proxy2
+    - name: openwrt-packages-sundaqiang
+      url: https://github.com/sundaqiang/openwrt-packages
+      custom_action: mv -n openwrt-packages/luci-* ./ && rm -rf openwrt-packages
+    - name: rkp-ipid
+      url: https://github.com/CHN-beta/rkp-ipid
+    - name: openwrt_nezha
+      url: https://github.com/2018nuoyan/openwrt_nezha
+      custom_action: mv -n openwrt_nezha/*nezhav1 ./ && rm -rf openwrt_nezha
+    - name: luci-app-nat6-helper
+      url: https://github.com/Ausaci/luci-app-nat6-helper
+      branch: main-dev
+
+  # 14. ДОМАШНИЕ И МЕДИА
+  home_media:
+    - name: luci-app-homebridge
+      url: https://github.com/shanglanxin/luci-app-homebridge
+    - name: luci-app-synology
+      url: https://github.com/ykxVK8yL5L/luci-app-synology
+      target_dir: synology
+      custom_action: mv -n synology/luci-app-synology ./ && rm -rf synology
+    - name: openwrt-switch-lan-play
+      url: https://github.com/htynkn/openwrt-switch-lan-play
+      custom_action: mv -n openwrt-switch-lan-play/package/* ./ && rm -rf openwrt-switch-lan-play
+    - name: luci-app-nodogsplash
+      url: https://github.com/xptsp/luci-app-nodogsplash
+    - name: luci-mod-listening-ports
+      url: https://github.com/xptsp/luci-mod-listening-ports
+    - name: luci-app-squid-adv
+      url: https://github.com/xptsp/luci-app-squid-adv
+    - name: luci-app-openclaw
+      url: https://github.com/10000ge10000/luci-app-openclaw
+
+  # 15. RUST И SHADOWSOCKS
+  rust_shadowsocks:
+    - name: luci-app-shadowsocks-rust
+      url: https://github.com/honwen/luci-app-shadowsocks-rust
+    - name: AutoBuild-Packages
+      url: https://github.com/Hyy2001X/AutoBuild-Packages
+      post_process: rm -rf AutoBuild-Packages/luci-app-adguardhome && mvdir AutoBuild-Packages
+
+  # 16. AT КОМАНДЫ И МОДЕМЫ
+  at_modem:
+    - name: luci-app-at-socat
+      url: https://github.com/4IceG/luci-app-at-socat
+      target_dir: at-socat
+      action: mvdir
+    - name: luci-app-easyconfig-transfer
+      url: https://github.com/4IceG/luci-app-easyconfig-transfer
+      target_dir: easyconfig
+      action: mvdir
+    - name: luci-app-atcommands
+      url: https://github.com/4IceG/luci-app-atcommands
+      target_dir: atcommands
+      action: mvdir
+    - name: luci-app-broadbandacc
+      url: https://github.com/Diciya/luci-app-broadbandacc
+    - name: WiFiPortal
+      url: https://github.com/wiwizcom/WiFiPortal
+      action: mvdir
+
+  # 17. TOR И АНОНИМНОСТЬ
+  tor_anon:
+    - name: luci-app-torbp
+      url: https://github.com/zerolabnet/luci-app-torbp
+    - name: luci-app-airconnect
+      url: https://github.com/sbwml/luci-app-airconnect
+      target_dir: airconnect1
+      custom_action: mv airconnect1/* ./ && rm -rf airconnect1
+    - name: luci-theme-alpha
+      url: https://github.com/derisamedia/luci-theme-alpha
+    - name: luci-app-alpha-config
+      url: https://github.com/animegasan/luci-app-alpha-config
+    - name: openwrt-luci-proto-tinc
+      url: https://github.com/gofly/openwrt-luci-proto-tinc
+    - name: mnh-openwrt
+      url: https://github.com/hzyitc/mnh-openwrt
+      action: mvdir
+
+  # 18. DAED И FANCONTROL
+  daed_fan:
+    - name: luci-app-daed-next
+      url: https://github.com/QiuSimons/luci-app-daed-next
+      target_dir: daed1
+      action: mvdir
+    - name: fancontrol
+      url: https://github.com/JiaY-shi/fancontrol
+      target_dir: fanc
+      custom_action: mv fanc/{fancontrol,luci-app-fancontrol} ./ && rm -rf fanc
+
+  # 19. 5G МОДЕМЫ
+  modem_5g:
+    - name: 5G-Modem-Support
+      url: https://github.com/Siriling/5G-Modem-Support
+      post_process: rm -rf 5G-Modem-Support/rooter && mvdir 5G-Modem-Support
+    - name: istore-packages
+      url: https://github.com/linkease/istore-packages
+
+  # 20. MUINK ПАКЕТЫ
+  muink_packages:
+    - name: luci-app-dnsproxy
+      url: https://github.com/muink/luci-app-dnsproxy
+    - name: luci-app-einat
+      url: https://github.com/muink/luci-app-einat
+    - name: openwrt-einat-ebpf
+      url: https://github.com/muink/openwrt-einat-ebpf
+    - name: openwrt-natmapt
+      url: https://github.com/muink/openwrt-natmapt
+    - name: luci-app-natmapt
+      url: https://github.com/muink/luci-app-natmapt
+    - name: openwrt-stuntman
+      url: https://github.com/muink/openwrt-stuntman
+    - name: openwrt-alwaysonline
+      url: https://github.com/muink/openwrt-alwaysonline
+    - name: luci-app-alwaysonline
+      url: https://github.com/muink/luci-app-alwaysonline
+    - name: openwrt-rgmac
+      url: https://github.com/muink/openwrt-rgmac
+    - name: luci-app-change-mac
+      url: https://github.com/muink/luci-app-change-mac
+    - name: luci-app-packagesync
+      url: https://github.com/muink/luci-app-packagesync
+    - name: luci-app-tn-netports
+      url: https://github.com/muink/luci-app-tn-netports
+    - name: openwrt-go-stun
+      url: https://github.com/muink/openwrt-go-stun
+    - name: luci-app-tinyfilemanager
+      url: https://github.com/muink/luci-app-tinyfilemanager
+    - name: openwrt-Toolkit
+      url: https://github.com/muink/openwrt-Toolkit
+    - name: openwrt-fastfetch
+      url: https://github.com/muink/openwrt-fastfetch
+    - name: luci-app-ssrust
+      url: https://github.com/muink/luci-app-ssrust
+
+  # 21. GSPOTX2F ПАКЕТЫ
+  gspotx2f_packages:
+    - name: luci-app-temp-status
+      url: https://github.com/gSpotx2f/luci-app-temp-status
+    - name: luci-app-cpu-perf
+      url: https://github.com/gSpotx2f/luci-app-cpu-perf
+    - name: luci-app-log
+      url: https://github.com/gSpotx2f/luci-app-log
+    - name: luci-app-internet-detector
+      url: https://github.com/gSpotx2f/luci-app-internet-detector
+      target_dir: idetector
+      custom_action: mv idetector/*internet-detector* ./ && rm -rf idetector
+    - name: luci-app-disks-info
+      url: https://github.com/gSpotx2f/luci-app-disks-info
+    - name: luci-app-interfaces-statistics
+      url: https://github.com/gSpotx2f/luci-app-interfaces-statistics
+    - name: luci-app-cpu-status-mini
+      url: https://github.com/gSpotx2f/luci-app-cpu-status-mini
+    - name: luci-app-cpu-status
+      url: https://github.com/gSpotx2f/luci-app-cpu-status
+
+  # 22. CARSEASON ПАКЕТЫ
+  carseason:
+    - name: carseason-packages
+      url: https://github.com/Carseason/openwrt-packages
+      target_dir: Carseason1
+      custom_action: mv -n Carseason1/*/* ./ && mv services/* ./ && rm -rf Carseason1 services
+    - name: openwrt-themedog
+      url: https://github.com/Carseason/openwrt-themedog
+      custom_action: mv -n openwrt-themedog/luci/* ./ && rm -rf openwrt-themedog
+    - name: carseason-app-actions
+      url: https://github.com/Carseason/openwrt-app-actions
+      target_dir: Carseason2
+      custom_action: mv -n Carseason2/applications/* ./ && rm -rf Carseason2
+
+  # 23. NEKO ПАКЕТЫ
+  neko_packages:
+    - name: openwrt-nekobox
+      url: https://github.com/Thaolga/openwrt-nekobox
+      custom_action: mv openwrt-nekobox/luci-* ./ && rm -rf openwrt-nekobox
+    - name: openwrt-neko
+      url: https://github.com/nosignals/openwrt-neko
+      custom_action: mv openwrt-neko/luci-app-neko ./ && rm -rf openwrt-neko
+
+  # 24. IKOOLPROXY И ANDROID
+  ikool_android:
+    - name: luci-app-ikoolproxy
+      url: https://github.com/ilxp/luci-app-ikoolproxy
+    - name: luci-app-droidmodem
+      url: https://github.com/animegasan/luci-app-droidmodem
+    - name: luci-app-droidnet
+      url: https://github.com/animegasan/luci-app-droidnet
+    - name: luci-app-ipinfo
+      url: https://github.com/animegasan/luci-app-ipinfo
+    - name: luci-app-dnsleaktest
+      url: https://github.com/animegasan/luci-app-dnsleaktest
+    - name: luci-app-gpioled
+      url: https://github.com/animegasan/luci-app-gpioled
+    - name: hickory-dns-openwrt
+      url: https://github.com/hingbong/hickory-dns-openwrt
+      action: mvdir
+    - name: luci-app-guest-wifi
+      url: https://github.com/kenzok78/luci-app-guest-wifi
+    - name: openwrt-natmap
+      url: https://github.com/EkkoG/openwrt-natmap
+    - name: luci-app-natmap
+      url: https://github.com/EkkoG/luci-app-natmap
+    - name: openwrt-hv-tools
+      url: https://github.com/yichya/openwrt-hv-tools
+
+  # 25. EASYTIER И VNT
+  easytier_vnt:
+    - name: luci-app-easytier
+      url: https://github.com/EasyTier/luci-app-easytier
+      target_dir: luci-app-easytier1
+      action: mvdir
+    - name: luci-app-dnspod
+      url: https://github.com/ntlf9t/luci-app-dnspod
+    - name: luci-app-vnt
+      url: https://github.com/lmq8267/luci-app-vnt
+      target_dir: opvnt
+      custom_action: mv -f opvnt/luci-app-vnt ./ && rm -rf opvnt
+    - name: luci-app-nettask
+      url: https://github.com/RymFred11/luci-app-nettask
+      target_dir: nettask
+      custom_action: mv nettask/luci-app-nettask ./ && rm -rf nettask
+    - name: luci-app-xupnpd
+      url: https://github.com/jarod360/luci-app-xupnpd
+    - name: openwrt-caddy
+      url: https://github.com/fuqiang03/openwrt-caddy
+    - name: luci-app-caddy
+      url: https://github.com/lmq8267/luci-app-caddy
+      target_dir: luci-caddy
+      custom_action: mv luci-caddy/luci-app-caddy ./ && rm -rf luci-caddy
+    - name: luci-app-smbuser
+      url: https://github.com/sbwml/luci-app-smbuser
+    - name: luci-app-redsocks
+      url: https://github.com/rushxrushx/luci-app-redsocks
+    - name: luci-app-dynv6
+      url: https://github.com/luochongjun/luci-app-dynv6
+    - name: luci-app-campusnet
+      url: https://github.com/nicholas9698/luci-app-campusnet
+    - name: luci-app-switchtools
+      url: https://github.com/tanghammer/luci-app-switchtools
+
+  # 26. ACCESS CONTROL
+  access_control:
+    - name: luci-app-accesscontrol-plus
+      url: https://github.com/kingyond/luci-app-accesscontrol-plus
+      target_dir: accesscontrol-plus
+      custom_action: mv accesscontrol-plus/luci-app-accesscontrol-plus ./ && rm -rf accesscontrol-plus
+    - name: luci-app-lite-watchdog
+      url: https://github.com/4IceG/luci-app-lite-watchdog
+      target_dir: lite-watchdog
+      custom_action: mv lite-watchdog/luci-app-lite-watchdog ./ && rm -rf lite-watchdog
+    - name: luci-app-miniproxy
+      url: https://github.com/Mitsuhaxy/luci-app-miniproxy
+    - name: luci-app-cellularstatus
+      url: https://github.com/tkmsst/luci-app-cellularstatus
+      target_dir: cellularstatus
+      custom_action: mv cellularstatus/luci/applications/* ./ && rm -rf cellularstatus
+    - name: luci-app-nginx
+      url: https://github.com/arenekosreal/luci-app-nginx
+    - name: luci-app-school
+      url: https://github.com/zfdx123/luci-app-school
+    - name: luci-app-tn-lldpd
+      url: https://github.com/tano-systems/luci-app-tn-lldpd
+    - name: luci-app-qos-emong
+      url: https://github.com/DRAWCORE/luci-app-qos-emong
+    - name: luci-app-taskschedule
+      url: https://github.com/ykxVK8yL5L/luci-app-taskschedule
+      target_dir: taskschedule
+      action: mvdir
+
+  # 27. ОСТАЛЬНЫЕ ПАКЕТЫ
+  other_packages:
+    - name: luci-app-jederproxy
+      url: https://github.com/ttimasdf/luci-app-jederproxy
+    - name: luci-app-cqustdotnet
+      url: https://github.com/ApeaSuperz/luci-app-cqustdotnet
+      target_dir: cqustdotnet
+      custom_action: mv cqustdotnet/luci-app-cqustdotnet ./ && rm -rf cqustdotnet
+    - name: luci-app-xclient
+      url: https://github.com/xcode75/luci-app-xclient
+    - name: luci-app-mproxy
+      url: https://github.com/chenzhen6666/luci-app-mproxy
+      target_dir: mproxy
+      action: mvdir
+    - name: luci-app-ipv6clientfilter
+      url: https://github.com/a904055262/luci-app-ipv6clientfilter
+    - name: luci-app-domain-proxy
+      url: https://github.com/mukaiu/luci-app-domain-proxy
+    - name: luci-app-smartvpn
+      url: https://github.com/danielaskdd/luci-app-smartvpn
+    - name: luci-app-forcedata
+      url: https://github.com/hequan2017/luci-app-forcedata
+    - name: luci-app-openlist2
+      url: https://github.com/sbwml/luci-app-openlist2
+      target_dir: oplist
+      action: mvdir
+    - name: luci-theme-material3
+      url: https://github.com/AngelaCooljx/luci-theme-material3
+    - name: luci-theme-aurora
+      url: https://github.com/eamonxg/luci-theme-aurora
+    - name: qosmate
+      url: https://github.com/hudra0/qosmate
+    - name: luci-app-ympd
+      url: https://github.com/xptsp/luci-app-ympd
+    - name: openwrt-ympd
+      url: https://github.com/xptsp/openwrt-ympd
+    - name: openwrt-peanut
+      url: https://github.com/xptsp/openwrt-peanut
+    - name: luci-app-public-ip-monitor
+      url: https://github.com/calfeche13/luci-app-public-ip-monitor
+    - name: luci-app-wechatpush
+      url: https://github.com/tty228/luci-app-wechatpush
+    - name: luci-app-mentohust
+      url: https://github.com/sbwml/luci-app-mentohust
+      target_dir: mentohust1
+      action: mvdir
+    - name: beszel-agent-openwrt
+      url: https://github.com/vernette/beszel-agent-openwrt
+      action: mvdir
+
+# ============================================
+# ПОСТ-ОБРАБОТКА
+# ============================================
 post_processing:
-  # Удаление дубликатов
   delete_duplicates:
     - source: luciapp
-      exclude:
-        - luci-app-noddos
-        - luci-app-filebrowser-go
-        - luci-app-chrony
-        
-  # Sed замены  
+      action: mv_to_root
+    - source: lean
+      action: mv_to_root
+    - source: istore-packages
+      action: mv_to_root
+
   sed_replacements:
     - pattern: "\\(network\\..*\\)\\.ifname"
       replacement: "\\1.device"
-      paths:
-        - "*/root/*"
-        - "*/files/*"
-        - "*/luasrc/*"
-      exclude_paths:
-        - "./base-files/*"
-        - "./dnsmasq/*"
-        
+      paths: ["*/root/*", "*/files/*", "*/luasrc/*"]
     - pattern: "killall \\([^-]+*\\)"
       replacement: "killall -3 \\1"
-      paths:
-        - "*/files/root/etc/init.d/*"
-        - "*/root/etc/init.d/*"
-
-  # Перемещение файлов
-  move_files:
-    - source: "luciapp/!(luci-app-noddos|luci-app-filebrowser-go)/"
-      target: "./"
-      
-  # Makefile модификации
-  makefile_mods:
-    - add_pkg_release: true
-    - fix_includes: true
-    - fix_docker_deps: true
+      paths: ["*/files/root/etc/init.d/*", "*/root/etc/init.d/*"]
