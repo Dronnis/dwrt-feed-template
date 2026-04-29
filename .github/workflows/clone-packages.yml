@@ -50,12 +50,16 @@ jobs:
 
       - name: Clone with Protection & Timing
         id: clone
+        timeout-minutes: 60  # Максимум 60 минут на всё клонирование
         run: |
           chmod +x .github/scripts/*.sh
           source .github/scripts/timing.sh
           init_metrics
           start_timer "clone_repos"
-          export MAX_PARALLEL_PER_GROUP=5 MAX_RETRIES=2 RETRY_DELAY_BASE=2 CLONE_TIMEOUT_MIN=5
+          export MAX_PARALLEL_PER_GROUP=3  # Уменьшаем с 5 до 3 для стабильности
+          export MAX_RETRIES=2 
+          export RETRY_DELAY_BASE=2 
+          export CLONE_TIMEOUT_MIN=3  # Уменьшаем с 5 до 3 минут
           bash .github/scripts/clone-manager.sh '${{ steps.prep.outputs.sources_json }}'
           end_timer "clone_repos"
           print_summary

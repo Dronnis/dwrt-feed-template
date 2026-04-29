@@ -15,9 +15,8 @@ log() { echo "[$(date '+%H:%M:%S')] [$1] $2" >&2; }
 wait_for_slot() {
   local g="$1"
   while [[ ${grp_count[$g]:-0} -ge $MAX_PARALLEL ]]; do
-    for pid in ${grp_pids[$g]:-}; do 
-      kill -0 "$pid" 2>/dev/null || continue
-    done
+    # Очищаем мертвые процессы перед проверкой
+    cleanup_group "$g"
     sleep 1
   done
 }
@@ -36,11 +35,20 @@ cleanup_group() {
 
 wait_for_group() {
   local g="$1"
+  local result_file="/tmp/clone_result_$$.tmp"
+  
   for pid in ${grp_pids[$g]:-}; do 
-    wait "$pid" 2>/dev/null || true
+    # Ждем конкретный процесс и сохраняем его exit code
+    wait "$pid" 2>/dev/null
+    local exit_code=$?
+    echo "$exit_code" >> "$result_file"
   done
+  
   grp_pids[$g]=""
   grp_count[$g]=0
+  
+  # Возвращаем файл с результатами для обработки
+  echo "$result_file"
 }
 
 clone_with_retry() {
@@ -56,18 +64,23 @@ clone_with_retry() {
     
     if [[ "$sp" == "true" ]]; then
       local td=$(mktemp -d)
-      trap "rm -rf '$td'" RETURN
-      timeout "${CLONE_TIMEOUT}m" git clone -b "$b" --depth=1 --filter=blob:none --sparse "$url" "$td" 2>/dev/null || ec=$?
-      if [[ $ec -eq 0 ]]; then
-        (cd "$td" && git sparse-checkout init --cone && git sparse-checkout set $pa) || ec=$?
-      fi
-      for pth in $pa; do 
-        if [[ -d "$td/$pth" ]]; then
-          mv -n "$td/$pth" ./ 2>/dev/null || true
-        fi
-      done
+      # Используем trap для очистки
+      ( 
+        trap "rm -rf '$td'" EXIT
+        timeout "${CLONE_TIMEOUT}m" git clone -b "$b" --depth=1 --filter=blob:none --sparse "$url" "$td" 2>/dev/null || exit $?
+        cd "$td" || exit 1
+        git sparse-checkout init --cone || exit 1
+        git sparse-checkout set $pa || exit 1
+        for pth in $pa; do 
+          if [[ -d "$pth" ]]; then
+            mv -n "$pth" "$OLDPWD/" 2>/dev/null || true
+          fi
+        done
+      )
+      ec=$?
     else
-      timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>/dev/null || ec=$?
+      timeout "${CLONE_TIMEOUT}m" git clone --depth=1 --quiet "$url" "$dir" 2>/dev/null
+      ec=$?
       if [[ $ec -eq 0 ]]; then
         if [[ "$pm" == "true" && -d "$dir" ]]; then 
           find "$dir" -maxdepth 1 -mindepth 1 -type d -exec mv -n {} ./ \; 2>/dev/null
@@ -90,7 +103,7 @@ clone_with_retry() {
       return 0
     fi
     err="Exit: $ec"
-    log "WARN" "❌ $err"
+    log "WARN" "❌ $err (${el}s)"
     if [[ $att -lt $mr ]]; then
       sleep $((RETRY_DELAY * att))
     fi
@@ -104,6 +117,7 @@ clone_with_retry() {
 enqueue() {
   local g="$1" src="$2"
   wait_for_slot "$g"
+  
   (
     local priority=$(echo "$src" | jq -r '.priority // 99')
     local owner=$(echo "$src" | jq -r '.owner')
@@ -119,6 +133,7 @@ enqueue() {
     clone_with_retry "$g" "$priority" "$owner" "$repo" "$branch" "$target" "$sparse" "$paths" "$post_move" "$extract" "$max_retries"
     exit $?
   ) &
+  
   local pid=$!
   grp_count[$g]=$((${grp_count[$g]:-0} + 1))
   grp_pids[$g]="${grp_pids[$g]:-} $pid"
@@ -152,10 +167,6 @@ main() {
   for g in "${glist[@]}"; do
     echo "${gprio[$g]} $g" >> "$temp_file"
   done
-  sort -n "$temp_file" | while read priority group; do
-    # rebuild glist in sorted order
-    :
-  done
   
   local sorted_groups=()
   while IFS= read -r line; do
@@ -172,36 +183,40 @@ main() {
   
   for g in "${glist[@]}"; do
     log "INFO" "🚀 Group: $g"
+    
+    # Запускаем все задачи группы
     while IFS= read -r src; do
       if [[ -n "$src" ]]; then
         enqueue "$g" "$src"
       fi
     done <<< "${gmap[$g]}"
     
-    wait_for_group "$g"
+    # Ждем завершения всех задач группы
+    local result_file=$(wait_for_group "$g")
     
-    # Count results
+    # Подсчитываем результаты
     local group_ok=0 group_fail=0
-    local result_files=$(ls /tmp/clone_result_*.tmp 2>/dev/null || true)
-    if [[ -n "$result_files" ]]; then
-      for f in $result_files; do
-        if [[ -f "$f" ]]; then
-          local content=$(cat "$f" 2>/dev/null || echo "")
-          if [[ "$content" == "0" ]]; then
-            ((group_ok++))
-          else
-            ((group_fail++))
-          fi
-          rm -f "$f" 2>/dev/null || true
+    if [[ -f "$result_file" ]]; then
+      while IFS= read -r code; do
+        if [[ "$code" == "0" ]]; then
+          ((group_ok++))
+        else
+          ((group_fail++))
         fi
-      done
+      done < "$result_file"
+      rm -f "$result_file"
     fi
+    
     total_ok=$((total_ok + group_ok))
     total_fail=$((total_fail + group_fail))
     log "INFO" "✅ Group '$g' done: $group_ok ok, $group_fail fail"
   done
   
-  echo "total_ok=$total_ok total_fail=$total_fail"
+  echo "total_ok=$total_ok total_fail=$total_fail" >> /tmp/clone_summary.env
+  
+  # Выводим для захвата в GitHub Actions
+  echo "total_ok=$total_ok"
+  echo "total_fail=$total_fail"
 }
 
 main "${1:-}"
